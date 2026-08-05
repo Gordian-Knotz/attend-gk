@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { StatValue } from "@/components/site/stat-value";
 
 type Tile = {
   value: string;
@@ -28,9 +29,8 @@ export function StatTiles({
             i > 0 && "border-l border-border"
           )}
         >
-          <div className="font-serif text-4xl leading-none">
-            {tile.value}
-            {tile.unit && <span className="text-primary">{tile.unit}</span>}
+          <div className="font-serif text-4xl leading-none tabular-nums">
+            <StatValue value={tile.value} unit={tile.unit} />
           </div>
           <div className="font-label mt-2 text-muted-foreground">
             {tile.label}

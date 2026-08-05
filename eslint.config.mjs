@@ -20,6 +20,19 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
+  {
+    // Vendored verbatim from the React Bits registry (reactbits.dev), which
+    // ships looser types and dependency arrays than this project's rules
+    // allow. Kept unmodified so re-pulling a component doesn't clobber local
+    // fixes — relax the rules here rather than editing upstream code.
+    // Anything we adapt for the brand gets copied into src/components/site
+    // or src/components/ui and is linted normally.
+    files: ["src/components/reactbits/**"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "react-hooks/exhaustive-deps": "off",
+    },
+  },
 ];
 
 export default eslintConfig;

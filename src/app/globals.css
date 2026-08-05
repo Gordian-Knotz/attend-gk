@@ -1,0 +1,145 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  PAC brand tokens — sourced from "The PAC Document Format" (DS-01).
+  The system's one rule ("every page is either paper or ink") maps directly
+  onto light/dark mode here: light = Warm Paper, dark = Ink. Secondary,
+  muted and border tones are extended/derived shades needed for app UI
+  surface hierarchy that the print-oriented doc didn't need to specify.
+*/
+
+:root {
+  --radius: 0.2rem;
+
+  /* base palette, straight from DS-01 */
+  --pac-ink: #171210;
+  --pac-graphite: #2a211d;
+  --pac-orange: #e8532e;
+  --pac-orange-light: #f4a98d;
+  --pac-ember: #a63a1c;
+  --pac-paper: #f7f3ec;
+
+  --background: var(--pac-paper);
+  --foreground: var(--pac-ink);
+
+  --card: #fffdfa;
+  --card-foreground: var(--pac-ink);
+
+  --popover: #fffdfa;
+  --popover-foreground: var(--pac-ink);
+
+  --primary: var(--pac-orange);
+  --primary-foreground: var(--pac-ink);
+
+  --secondary: #ece6da;
+  --secondary-foreground: var(--pac-ink);
+
+  --muted: #ece6da;
+  --muted-foreground: #6b5f52;
+
+  --accent: var(--pac-orange-light);
+  --accent-foreground: var(--pac-ember);
+
+  --destructive: var(--pac-ember);
+  --destructive-foreground: var(--pac-paper);
+
+  --border: rgb(23 18 16 / 12%);
+  --input: rgb(23 18 16 / 16%);
+  --ring: var(--pac-orange);
+
+  /* typefaces — self-hosted via @fontsource, no Google Fonts CDN call */
+  --font-plex-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-source-serif: "Source Serif 4 Variable", ui-serif, Georgia, serif;
+  --font-plex-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+.dark {
+  --background: var(--pac-ink);
+  --foreground: var(--pac-paper);
+
+  --card: var(--pac-graphite);
+  --card-foreground: var(--pac-paper);
+
+  --popover: var(--pac-graphite);
+  --popover-foreground: var(--pac-paper);
+
+  --primary: var(--pac-orange);
+  --primary-foreground: var(--pac-ink);
+
+  --secondary: #362b23;
+  --secondary-foreground: var(--pac-paper);
+
+  --muted: #362b23;
+  --muted-foreground: #b8ab9c;
+
+  --accent: var(--pac-ember);
+  --accent-foreground: var(--pac-paper);
+
+  --destructive: #c94a28;
+  --destructive-foreground: var(--pac-paper);
+
+  --border: rgb(247 243 236 / 12%);
+  --input: rgb(247 243 236 / 16%);
+  --ring: var(--pac-orange);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-pac-ink: var(--pac-ink);
+  --color-pac-graphite: var(--pac-graphite);
+  --color-pac-orange: var(--pac-orange);
+  --color-pac-orange-light: var(--pac-orange-light);
+  --color-pac-ember: var(--pac-ember);
+  --color-pac-paper: var(--pac-paper);
+
+  --font-sans: var(--font-plex-sans);
+  --font-serif: var(--font-source-serif);
+  --font-mono: var(--font-plex-mono);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-serif;
+    letter-spacing: -0.01em;
+  }
+  .font-label {
+    @apply font-mono uppercase tracking-widest text-xs;
+  }
+}

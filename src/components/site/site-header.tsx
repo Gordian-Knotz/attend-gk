@@ -1,0 +1,48 @@
+import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
+
+const NAV = [
+  { label: "Features", href: "#features" },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Access", href: "#access" },
+  { label: "Contact", href: "#contact" },
+];
+
+export function SiteHeader() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+        <Link href="/" className="flex items-baseline gap-1.5">
+          <span className="font-serif text-xl">Attend</span>
+          <span className="font-serif text-xl italic text-primary">Pac</span>
+        </Link>
+
+        <nav className="hidden items-center gap-8 md:flex">
+          {NAV.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              className="font-label text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link href="/login" className="hidden sm:block">
+            <Button size="sm" variant="ghost">
+              Log in
+            </Button>
+          </Link>
+          <Link href="/login?mode=sign-up">
+            <Button size="sm">Sign up</Button>
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}

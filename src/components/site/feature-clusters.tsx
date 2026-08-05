@@ -1,13 +1,14 @@
 import { Separator } from "@/components/ui/separator";
 import { Reveal } from "@/components/motion/reveal";
 import { RevealHeading } from "@/components/motion/reveal-heading";
+import { FeatureCard } from "@/components/site/feature-card";
 
 /**
  * The full feature inventory, grouped the way the product is actually
- * organised (capture → planning → oversight → output) rather than as one
- * flat list. Rendered as a document table-of-contents — hairline rows, no
- * cards — because sixteen cards on a page that already has card sections
- * reads as filler.
+ * organised — capture, then planning, then oversight, then output.
+ *
+ * One card per cluster rather than one per feature: sixteen cards would
+ * shred the page, while four gives each group room to be read as a group.
  */
 const CLUSTERS = [
   {
@@ -65,25 +66,27 @@ export function FeatureClusters() {
       </p>
       <Separator className="mt-4 mb-10" />
 
-      <div className="grid gap-x-12 gap-y-10 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         {CLUSTERS.map((cluster, i) => (
-          <Reveal key={cluster.group} delay={(i % 2) * 0.1}>
-            <h3 className="font-label text-primary">{cluster.group}</h3>
-            <p className="mt-2 text-sm text-muted-foreground">{cluster.lead}</p>
+          <Reveal key={cluster.group} delay={(i % 2) * 0.1} className="h-full">
+            <FeatureCard className="h-full">
+              <h3 className="font-label text-primary">{cluster.group}</h3>
+              <p className="mt-2 font-serif text-lg">{cluster.lead}</p>
 
-            <dl className="mt-4 border-t-2 border-foreground">
-              {cluster.features.map(([name, description]) => (
-                <div
-                  key={name}
-                  className="grid grid-cols-[minmax(0,10rem)_1fr] gap-4 border-b border-border py-3"
-                >
-                  <dt className="text-sm font-medium">{name}</dt>
-                  <dd className="text-sm text-muted-foreground">
-                    {description}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+              <dl className="mt-5 border-t border-border">
+                {cluster.features.map(([name, description]) => (
+                  <div
+                    key={name}
+                    className="border-b border-border py-3 last:border-0 sm:grid sm:grid-cols-[minmax(0,9rem)_1fr] sm:gap-4"
+                  >
+                    <dt className="text-sm font-medium">{name}</dt>
+                    <dd className="mt-0.5 text-sm text-muted-foreground sm:mt-0">
+                      {description}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </FeatureCard>
           </Reveal>
         ))}
       </div>

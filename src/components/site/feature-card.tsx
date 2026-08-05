@@ -1,0 +1,62 @@
+"use client";
+
+import * as React from "react";
+import { useReducedMotion } from "motion/react";
+
+import GlareHover from "@/components/reactbits/GlareHover";
+import { cn } from "@/lib/utils";
+
+/**
+ * Card surface for the feature clusters — a light sweep passes across the
+ * card on hover, which suits a brand built on paper and print.
+ *
+ * Wraps React Bits' GlareHover and neutralises three of its defaults that
+ * don't fit a content card: a fixed 500px box, `grid place-items-center`,
+ * and `cursor-pointer` on something that isn't clickable. Cursor is set
+ * inline because GlareHover merges `style` last, which is the only override
+ * that reliably beats its own class list.
+ *
+ * `glareColor` has to be a hex string — GlareHover parses it into rgba
+ * channels, so a CSS custom property won't work here. Background and border
+ * do take vars, so the card still follows the light/dark tokens.
+ */
+export function FeatureCard({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const reduceMotion = useReducedMotion();
+
+  const surface = cn(
+    "rounded-sm border border-border bg-card transition-colors duration-300 hover:border-primary/40",
+    className
+  );
+
+  if (reduceMotion) {
+    return <div className={cn(surface, "p-6")}>{children}</div>;
+  }
+
+  return (
+    <GlareHover
+      width="100%"
+      height="100%"
+      background="var(--card)"
+      borderColor="var(--border)"
+      borderRadius="0.2rem"
+      glareColor="#E8532E"
+      glareOpacity={0.18}
+      glareAngle={-35}
+      glareSize={260}
+      transitionDuration={750}
+      className={cn(
+        "!place-items-stretch transition-colors duration-300 hover:border-primary/40",
+        className
+      )}
+      style={{ cursor: "default" }}
+    >
+      <div className="w-full p-6">{children}</div>
+    </GlareHover>
+  );
+}

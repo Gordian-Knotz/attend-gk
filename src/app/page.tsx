@@ -29,6 +29,7 @@ import { Reveal } from "@/components/motion/reveal";
 import { RevealHeading } from "@/components/motion/reveal-heading";
 import { BlurLabel } from "@/components/motion/blur-label";
 import { HeroBackdrop } from "@/components/site/hero-backdrop";
+import { HeroRotator } from "@/components/site/hero-rotator";
 import { SiteHeader } from "@/components/site/site-header";
 import { StatTiles } from "@/components/site/stat-tiles";
 import { HeroPreview } from "@/components/site/hero-preview";
@@ -99,12 +100,14 @@ export default function Home() {
               <span className="italic text-primary">See it live</span> from
               the office.
             </RevealHeading>
-            <p className="mt-6 max-w-lg text-muted-foreground">
-              Built for teams whose people aren&apos;t at a desk — security
-              guards, drivers, site crews. Staff clock in from their own
-              phone or a fingerprint scanner you already have, and managers
-              see who&apos;s actually on site, in real time — not a stack of
-              timesheets to reconcile at month end.
+
+            <HeroRotator />
+
+            <p className="mt-4 max-w-lg text-muted-foreground">
+              For teams whose people aren&apos;t at a desk. Staff clock in
+              from their own phone or a fingerprint scanner you already have,
+              and managers see who&apos;s actually on site, in real time —
+              not a stack of timesheets to reconcile at month end.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/login?mode=sign-up">

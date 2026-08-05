@@ -1,4 +1,6 @@
 import { Separator } from "@/components/ui/separator";
+import { Reveal } from "@/components/motion/reveal";
+import { RevealHeading } from "@/components/motion/reveal-heading";
 
 /**
  * The full feature inventory, grouped the way the product is actually
@@ -53,10 +55,10 @@ const CLUSTERS = [
 export function FeatureClusters() {
   return (
     <section id="features" className="mx-auto max-w-6xl px-6 py-16">
-      <h2 className="font-serif text-3xl">
+      <RevealHeading className="font-serif text-3xl">
         Everything you need to manage{" "}
         <span className="italic text-primary">attendance</span>
-      </h2>
+      </RevealHeading>
       <p className="mt-4 max-w-lg text-muted-foreground">
         From clock-in to payroll export, built for teams that work on-site and
         in the field.
@@ -64,8 +66,8 @@ export function FeatureClusters() {
       <Separator className="mt-4 mb-10" />
 
       <div className="grid gap-x-12 gap-y-10 md:grid-cols-2">
-        {CLUSTERS.map((cluster) => (
-          <div key={cluster.group}>
+        {CLUSTERS.map((cluster, i) => (
+          <Reveal key={cluster.group} delay={(i % 2) * 0.1}>
             <h3 className="font-label text-primary">{cluster.group}</h3>
             <p className="mt-2 text-sm text-muted-foreground">{cluster.lead}</p>
 
@@ -82,7 +84,7 @@ export function FeatureClusters() {
                 </div>
               ))}
             </dl>
-          </div>
+          </Reveal>
         ))}
       </div>
     </section>

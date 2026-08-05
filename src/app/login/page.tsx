@@ -15,6 +15,7 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import { Reveal } from "@/components/motion/reveal";
 
 type Mode = "sign-in" | "sign-up" | "forgot";
 
@@ -153,7 +154,8 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-secondary/40 px-4">
-      <Card className="w-full max-w-sm">
+      <Reveal className="w-full max-w-sm" distance={14} duration={0.45}>
+      <Card className="w-full">
         <CardHeader>
           <div className="flex items-baseline gap-1.5">
             <span className="font-serif text-xl">Attend</span>
@@ -232,6 +234,7 @@ function LoginForm() {
           </form>
         </CardContent>
       </Card>
+      </Reveal>
     </div>
   );
 }

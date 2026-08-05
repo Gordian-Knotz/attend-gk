@@ -1,3 +1,5 @@
+import { Reveal } from "@/components/motion/reveal";
+
 const CLIENTS = [
   "Nairobi Facilities Ltd",
   "Coastline Logistics",
@@ -14,7 +16,7 @@ const CLIENTS = [
 export function TrustBar() {
   return (
     <section className="border-y border-border bg-secondary/30">
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <Reveal className="mx-auto max-w-6xl px-6 py-8">
         <p className="font-label text-center text-muted-foreground">
           Trusted by growing teams across East Africa
         </p>
@@ -28,7 +30,7 @@ export function TrustBar() {
             </li>
           ))}
         </ul>
-      </div>
+      </Reveal>
     </section>
   );
 }

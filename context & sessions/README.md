@@ -16,6 +16,7 @@ commit that closed that session.
 | [04-database-and-rls.md](04-database-and-rls.md) | Schema divergence in detail, the RLS bugs found in both codebases, and the two new migrations |
 | [05-design-system.md](05-design-system.md) | DS-01 tokens, the component conventions the ported UI had to match, and the design calls made along the way |
 | [06-next-steps.md](06-next-steps.md) | Known gaps, caveats worth knowing before trusting a number on screen, and what to pick up next |
+| [07-ui-motion-layer.md](07-ui-motion-layer.md) | React Bits: how it's installed (the CLI is broken here), what's vendored, every wrapper and why, and how to dial it back |
 
 ## The short version
 

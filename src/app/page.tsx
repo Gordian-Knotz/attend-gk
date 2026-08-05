@@ -10,7 +10,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import {
-  Card,
   CardHeader,
   CardTitle,
   CardDescription,
@@ -25,6 +24,11 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { SpotlightCard } from "@/components/ui/spotlight-card";
+import { Reveal } from "@/components/motion/reveal";
+import { RevealHeading } from "@/components/motion/reveal-heading";
+import { BlurLabel } from "@/components/motion/blur-label";
+import { HeroBackdrop } from "@/components/site/hero-backdrop";
 import { SiteHeader } from "@/components/site/site-header";
 import { StatTiles } from "@/components/site/stat-tiles";
 import { HeroPreview } from "@/components/site/hero-preview";
@@ -78,17 +82,23 @@ export default function Home() {
       <SiteHeader />
 
       {/* Hero */}
-      <section className="mx-auto max-w-6xl px-6 pt-16 pb-10">
+      <section className="relative mx-auto max-w-6xl px-6 pt-16 pb-10">
+        <HeroBackdrop />
         <div className="grid items-center gap-14 lg:grid-cols-[1.1fr_1fr]">
           <div>
-            <span className="font-label text-primary">
-              Workforce attendance &amp; time management
-            </span>
-            <h1 className="mt-4 max-w-xl font-serif text-5xl leading-[1.05] md:text-6xl">
+            <BlurLabel
+              text="Workforce attendance & time management"
+              className="font-label text-primary"
+            />
+            <RevealHeading
+              as="h1"
+              delay={0.15}
+              className="mt-4 max-w-xl font-serif text-5xl leading-[1.05] md:text-6xl"
+            >
               Clock in from the field.{" "}
               <span className="italic text-primary">See it live</span> from
               the office.
-            </h1>
+            </RevealHeading>
             <p className="mt-6 max-w-lg text-muted-foreground">
               Built for teams whose people aren&apos;t at a desk — security
               guards, drivers, site crews. Staff clock in from their own
@@ -132,22 +142,24 @@ export default function Home() {
 
       {/* How it works / capture layer */}
       <section id="how-it-works" className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="font-serif text-3xl">
+        <RevealHeading className="font-serif text-3xl">
           How staff <span className="italic text-primary">clock in</span>
-        </h2>
+        </RevealHeading>
         <Separator className="mt-4 mb-8" />
 
         <div className="grid gap-4 md:grid-cols-3">
-          {CAPTURE_LAYER.map(({ icon: Icon, title, detail }) => (
-            <Card key={title}>
-              <CardHeader>
-                <Icon className="size-6 text-primary" strokeWidth={1.5} />
-                <CardTitle className="mt-2">{title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>{detail}</CardDescription>
-              </CardContent>
-            </Card>
+          {CAPTURE_LAYER.map(({ icon: Icon, title, detail }, i) => (
+            <Reveal key={title} delay={i * 0.08}>
+              <SpotlightCard className="h-full">
+                <CardHeader>
+                  <Icon className="size-6 text-primary" strokeWidth={1.5} />
+                  <CardTitle className="mt-2">{title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription>{detail}</CardDescription>
+                </CardContent>
+              </SpotlightCard>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -156,15 +168,16 @@ export default function Home() {
 
       {/* Access */}
       <section id="access" className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="font-serif text-3xl">
+        <RevealHeading className="font-serif text-3xl">
           Who sees <span className="italic text-primary">what</span>
-        </h2>
+        </RevealHeading>
         <p className="mt-4 max-w-lg text-muted-foreground">
           Every account only sees what it needs to. Access is set by role,
           not by who remembered to ask.
         </p>
         <Separator className="mt-4 mb-8" />
 
+        <Reveal>
         <Table>
           <TableHeader>
             <TableRow>
@@ -196,6 +209,7 @@ export default function Home() {
             ))}
           </TableBody>
         </Table>
+        </Reveal>
       </section>
 
       <FAQ />
@@ -203,10 +217,13 @@ export default function Home() {
       {/* CTA band — two-thirds ink field, per DS-01 section-opener convention */}
       <section className="bg-pac-ink text-pac-paper">
         <div className="mx-auto max-w-6xl px-6 py-16">
-          <span className="font-label text-primary">Ready when you are</span>
-          <h2 className="mt-4 max-w-xl font-serif text-4xl">
+          <BlurLabel
+            text="Ready when you are"
+            className="font-label text-primary"
+          />
+          <RevealHeading className="mt-4 max-w-xl font-serif text-4xl">
             Ready to see where your team really is?
-          </h2>
+          </RevealHeading>
           <p className="mt-4 max-w-lg text-pac-paper/70">
             One geofenced check-in flow for guards, field staff, and site
             teams — with a live dashboard that tells you who&apos;s on site
@@ -236,10 +253,10 @@ export default function Home() {
       <section id="contact" className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
-            <span className="font-label text-primary">Get in touch</span>
-            <h2 className="mt-4 font-serif text-3xl">
+            <BlurLabel text="Get in touch" className="font-label text-primary" />
+            <RevealHeading className="mt-4 font-serif text-3xl">
               Tell us about your <span className="italic text-primary">sites</span>.
-            </h2>
+            </RevealHeading>
             <p className="mt-4 max-w-sm text-muted-foreground">
               Share a bit about your team and we&apos;ll set up a pilot on
               your own sites — no long procurement process, no hardware

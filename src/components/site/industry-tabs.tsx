@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { RevealHeading } from "@/components/motion/reveal-heading";
 
 /**
  * Each industry carries a short spec sheet rather than a screenshot slot —
@@ -114,10 +115,10 @@ export function IndustryTabs() {
 
   return (
     <section id="industries" className="mx-auto max-w-6xl px-6 py-16">
-      <h2 className="font-serif text-3xl">
+      <RevealHeading className="font-serif text-3xl">
         Built for how your industry{" "}
         <span className="italic text-primary">actually works</span>
-      </h2>
+      </RevealHeading>
       <p className="mt-4 max-w-lg text-muted-foreground">
         One platform, tuned for every kind of team.
       </p>

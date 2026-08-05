@@ -16,6 +16,7 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import { Reveal } from "@/components/motion/reveal";
 
 /**
  * Landing page for the reset link emailed by /login → "Forgot password?".
@@ -83,7 +84,8 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-secondary/40 px-4">
-      <Card className="w-full max-w-sm">
+      <Reveal className="w-full max-w-sm" distance={14} duration={0.45}>
+      <Card className="w-full">
         <CardHeader>
           <div className="flex items-baseline gap-1.5">
             <span className="font-serif text-xl">Attend</span>
@@ -155,6 +157,7 @@ export default function ResetPasswordPage() {
           )}
         </CardContent>
       </Card>
+      </Reveal>
     </div>
   );
 }

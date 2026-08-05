@@ -7,6 +7,7 @@ import { SignOutButton } from "./sign-out-button";
 import { LeaveRequestDialog } from "./leave-request-dialog";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Reveal } from "@/components/motion/reveal";
 
 const LEAVE_STATUS_VARIANT = {
   pending: "proposed",
@@ -117,7 +118,8 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-8">
+      <main className="mx-auto max-w-4xl px-6 py-8">
+      <Reveal className="flex flex-col gap-6" distance={16} duration={0.45}>
         <CheckInWidget
           siteName={site?.name ?? null}
           geofence={
@@ -245,6 +247,7 @@ export default async function DashboardPage() {
             ))}
           </CardContent>
         </Card>
+      </Reveal>
       </main>
     </div>
   );

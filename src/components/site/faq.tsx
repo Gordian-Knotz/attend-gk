@@ -1,6 +1,8 @@
 import { Plus } from "lucide-react";
 
 import { Separator } from "@/components/ui/separator";
+import { Reveal } from "@/components/motion/reveal";
+import { RevealHeading } from "@/components/motion/reveal-heading";
 
 const FAQS = [
   [
@@ -36,15 +38,15 @@ const FAQS = [
 export function FAQ() {
   return (
     <section id="faq" className="mx-auto max-w-3xl px-6 py-16">
-      <h2 className="font-serif text-3xl">
+      <RevealHeading className="font-serif text-3xl">
         Got questions? <span className="italic text-primary">We&apos;ve got answers</span>
-      </h2>
+      </RevealHeading>
       <p className="mt-4 text-muted-foreground">
         Everything worth knowing before you get started.
       </p>
       <Separator className="mt-4 mb-2" />
 
-      <div>
+      <Reveal>
         {FAQS.map(([question, answer]) => (
           <details key={question} className="group border-b border-border py-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-sm text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
@@ -59,7 +61,7 @@ export function FAQ() {
             </p>
           </details>
         ))}
-      </div>
+      </Reveal>
     </section>
   );
 }

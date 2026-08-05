@@ -19,6 +19,37 @@ commit that closed that session.
 | [07-ui-motion-layer.md](07-ui-motion-layer.md) | React Bits: how it's installed (the CLI is broken here), what's vendored, every wrapper and why, and how to dial it back |
 | [08-powersync-offline.md](08-powersync-offline.md) | Offline sync: scope, the geofence hole PowerSync's write path opened, and what's left to go live |
 
+## Where we left off — 6 Aug 2026
+
+Working tree clean, `next build` / `next lint` / `tsc` all green.
+
+**Blocked on you, in order:**
+
+1. `npm install-scripts approve @journeyapps/wa-sqlite` — npm blocked its
+   postinstall, so PowerSync's SQLite core never downloaded. It executes a
+   script and fetches a binary, which is why it wasn't done unasked.
+2. Create a PowerSync Cloud instance; run `supabase/powersync-setup.sql` on
+   a **direct** Postgres connection (DDL and `CREATE ROLE` can't go through
+   PostgREST); deploy `powersync/sync-rules.yaml`; set
+   `NEXT_PUBLIC_POWERSYNC_URL` in `.env.local`.
+3. Run `supabase/migrations/0007_geofence_enforcement.sql` — unexecuted SQL,
+   worth a scratch project first.
+
+**First job once those are done:** rewrite `src/app/dashboard/checkin-widget.tsx`
+and `/checkin` to read and write local SQLite, dropping the localStorage
+queue. Held back deliberately — see the end of
+[08-powersync-offline.md](08-powersync-offline.md).
+
+**Never visually reviewed.** No browser was driven all session. The Aurora
+hero backdrop, the GlareHover feature cards, the spotlight intensity and
+the reveal timing are all unlooked-at. Each is a single constant if
+anything needs a nudge.
+
+**Also open:** generate database types (`supabase gen types`) — the
+Supabase client is still untyped; the stray `C:\Users\PAC\package-lock.json`
+that makes every build warn about workspace root; `next lint` is deprecated
+in Next 16.
+
 ## The short version
 
 Two independent builds of the same product existed: `attend-v1` and

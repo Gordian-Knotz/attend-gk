@@ -1,4 +1,5 @@
--- Demo seed — run after 0001_init_schema.sql.
+-- Demo seed — run after all migrations in supabase/migrations/ (it touches
+-- `notifications`, which arrives in 0006).
 -- Creates one organization and one site so there's something to check into
 -- during development. Doesn't create an employee row — see README for how
 -- to attach your own Supabase Auth user to this org after signing up.
@@ -23,3 +24,21 @@ values (
   36.87840,
   150
 );
+
+-- A couple of notices so the Overview panel isn't empty on a fresh demo.
+-- Nothing writes to this table automatically yet; admins post by hand from
+-- /admin → "Post notice".
+insert into notifications (org_id, site_id, message, level)
+values
+  (
+    '11111111-1111-1111-1111-111111111111',
+    null,
+    'Payroll cut-off moves to the 25th from this month. Get timesheets approved before then.',
+    'warning'
+  ),
+  (
+    '11111111-1111-1111-1111-111111111111',
+    '22222222-2222-2222-2222-222222222222',
+    'Gate 2 fingerprint terminal is back online after Tuesday''s power cut.',
+    'info'
+  );

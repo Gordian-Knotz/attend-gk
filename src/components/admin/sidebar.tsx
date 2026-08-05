@@ -10,9 +10,11 @@ import {
   Fingerprint,
   FileBarChart,
   Settings,
+  Globe,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useAdminIdentity } from "@/components/admin/identity-context";
 
 const NAV = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
@@ -24,8 +26,13 @@ const NAV = [
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ] as const;
 
+const PLATFORM_NAV = [
+  { label: "Organizations", href: "/admin/organizations", icon: Globe },
+] as const;
+
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { role } = useAdminIdentity();
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card md:flex">
@@ -56,6 +63,29 @@ export function AdminSidebar() {
             </Link>
           );
         })}
+
+        {role === "super_admin" && (
+          <>
+            <span className="font-label mt-4 px-3 py-2 text-muted-foreground">
+              Platform
+            </span>
+            {PLATFORM_NAV.map(({ label, href, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex items-center gap-3 rounded-sm px-3 py-2 text-sm transition-colors",
+                  pathname.startsWith(href)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+                {label}
+              </Link>
+            ))}
+          </>
+        )}
       </nav>
 
       <div className="border-t border-border p-3">

@@ -1,8 +1,16 @@
-import { Building2, ArrowUpRight } from "lucide-react";
+import { Building2, ArrowUpRight, BellOff } from "lucide-react";
 
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { createClient } from "@/lib/supabase/server";
 import { classifyCheckIn } from "@/lib/attendance";
+import {
+  buildDailySeries,
+  localDateKey,
+  recentDays,
+} from "@/lib/attendance-series";
+import { AttendanceTrendChart } from "@/components/charts/attendance-trend-chart";
+import { PostNoticeDialog } from "./notice-dialog";
+import { DismissNoticeButton } from "./dismiss-notice-button";
 import { PageHeader } from "@/components/admin/page-header";
 import { Callout } from "@/components/callout";
 import { StatTiles } from "@/components/site/stat-tiles";
@@ -38,6 +46,12 @@ const STATUS_VARIANT: Record<DailyStatus, "outline" | "attention" | "destructive
   on_leave: "proposed",
 };
 
+const NOTICE_VARIANT: Record<string, "outline" | "attention" | "destructive"> = {
+  info: "outline",
+  warning: "attention",
+  critical: "destructive",
+};
+
 export default async function AdminOverviewPage() {
   const identity = await getEmployeeContext();
   if (!identity) return null; // layout already redirects; satisfies TS
@@ -49,11 +63,22 @@ export default async function AdminOverviewPage() {
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(todayStart);
   todayEnd.setDate(todayEnd.getDate() + 1);
-  const todayDateStr = todayStart.toISOString().slice(0, 10);
+  const todayDateStr = localDateKey(todayStart);
   const pastCutoff = now.getHours() >= 9; // see classifyCheckIn's note on this being a placeholder rule
 
-  const [{ data: sites }, { data: workforce }, { data: todaysEvents }, { data: onLeave }] =
-    await Promise.all([
+  // One 14-day window serves both the trend chart and today's numbers —
+  // today is just the last bucket, so there's no reason to query twice.
+  const trendDays = recentDays(14, now);
+  const windowStart = trendDays[0];
+  const windowStartDateStr = localDateKey(windowStart);
+
+  const [
+    { data: sites },
+    { data: workforce },
+    { data: windowEvents },
+    { data: leaveRows },
+    { data: notices },
+  ] = await Promise.all([
       supabase.from("sites").select("id, name").eq("org_id", identity.orgId),
       supabase
         .from("employees")
@@ -64,23 +89,45 @@ export default async function AdminOverviewPage() {
         .from("attendance_events")
         .select("employee_id, event_type, occurred_at")
         .eq("org_id", identity.orgId)
-        .gte("occurred_at", todayStart.toISOString())
+        .gte("occurred_at", windowStart.toISOString())
         .lt("occurred_at", todayEnd.toISOString())
         .order("occurred_at", { ascending: true }),
       supabase
         .from("leave_requests")
-        .select("employee_id")
+        .select("employee_id, start_date, end_date")
         .eq("org_id", identity.orgId)
         .eq("status", "approved")
         .lte("start_date", todayDateStr)
-        .gte("end_date", todayDateStr),
+        .gte("end_date", windowStartDateStr),
+      supabase
+        .from("notifications")
+        .select("id, message, level, site_id, created_at")
+        .eq("org_id", identity.orgId)
+        .order("created_at", { ascending: false })
+        .limit(5),
     ]);
 
   const siteNameById = new Map((sites ?? []).map((s) => [s.id, s.name]));
-  const onLeaveIds = new Set((onLeave ?? []).map((r) => r.employee_id));
+
+  const todaysEvents = (windowEvents ?? []).filter(
+    (ev) => localDateKey(new Date(ev.occurred_at)) === todayDateStr
+  );
+  const onLeaveIds = new Set(
+    (leaveRows ?? [])
+      .filter((r) => r.start_date <= todayDateStr && r.end_date >= todayDateStr)
+      .map((r) => r.employee_id)
+  );
+
+  const trendData = buildDailySeries({
+    days: trendDays,
+    events: windowEvents ?? [],
+    leave: leaveRows ?? [],
+    workforceIds: (workforce ?? []).map((e) => e.id),
+    now,
+  });
 
   const firstCheckInByEmployee = new Map<string, string>();
-  for (const ev of todaysEvents ?? []) {
+  for (const ev of todaysEvents) {
     if (ev.event_type === "check_in" && !firstCheckInByEmployee.has(ev.employee_id)) {
       firstCheckInByEmployee.set(ev.employee_id, ev.occurred_at);
     }
@@ -135,6 +182,7 @@ export default async function AdminOverviewPage() {
       <PageHeader
         title="Overview"
         description={`Live status across all sites — ${identity.orgName}.`}
+        action={<PostNoticeDialog sites={sites ?? []} />}
       />
 
       {!hasAnyData && (
@@ -163,6 +211,18 @@ export default async function AdminOverviewPage() {
           { value: String(kpi.onLeave), label: "On leave" },
         ]}
       />
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Attendance trend</CardTitle>
+            <Badge variant="outline">Last 14 days</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <AttendanceTrendChart data={trendData} />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <Card>
@@ -221,6 +281,7 @@ export default async function AdminOverviewPage() {
           </CardContent>
         </Card>
 
+        <div className="flex flex-col gap-4">
         <Card>
           <CardHeader>
             <CardTitle>Sites</CardTitle>
@@ -264,6 +325,53 @@ export default async function AdminOverviewPage() {
             </a>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Notices</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col">
+            {(notices ?? []).length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <BellOff className="size-5 text-muted-foreground" strokeWidth={1.5} />
+                <p className="text-sm text-muted-foreground">
+                  Nothing posted yet. Use{" "}
+                  <span className="font-medium text-foreground">Post notice</span>{" "}
+                  to tell the team something.
+                </p>
+              </div>
+            ) : (
+              (notices ?? []).map((notice) => (
+                <div
+                  key={notice.id}
+                  className="flex items-start gap-3 border-b border-border py-3 last:border-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={NOTICE_VARIANT[notice.level] ?? "outline"}>
+                        {notice.level}
+                      </Badge>
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {new Date(notice.created_at).toLocaleDateString([], {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </span>
+                      {notice.site_id && (
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {siteNameById.get(notice.site_id) ?? "Unknown site"}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1.5 text-sm">{notice.message}</p>
+                  </div>
+                  <DismissNoticeButton noticeId={notice.id} />
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+        </div>
       </div>
     </div>
   );

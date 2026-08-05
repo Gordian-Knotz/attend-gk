@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Smartphone,
   Fingerprint,
@@ -28,44 +29,11 @@ import { SiteHeader } from "@/components/site/site-header";
 import { StatTiles } from "@/components/site/stat-tiles";
 import { HeroPreview } from "@/components/site/hero-preview";
 import { ContactForm } from "@/components/site/contact-form";
-
-const FEATURES = [
-  {
-    name: "Mobile clock in/out",
-    description:
-      "Staff check in and out from their own phone. Location is confirmed automatically, and it keeps working without signal.",
-  },
-  {
-    name: "Fingerprint & face terminals",
-    description:
-      "Connects to the biometric machines you already run on site — nothing to rip out and replace.",
-  },
-  {
-    name: "Shift scheduling",
-    description:
-      "Build rosters for every site and handle shift-swap requests without a spreadsheet.",
-  },
-  {
-    name: "Admin dashboard",
-    description:
-      "See who's present, late, or absent at every site, as it happens — not the next morning.",
-  },
-  {
-    name: "Reports & payroll export",
-    description:
-      "One-click timesheets, ready to hand to whatever payroll process you already use.",
-  },
-  {
-    name: "Leave management",
-    description:
-      "Leave requests, approvals, and balances — all in one place instead of scattered across chats.",
-  },
-  {
-    name: "Overtime & attendance rules",
-    description:
-      "Configurable late/early rules and overtime thresholds, set per site.",
-  },
-] as const;
+import { TrustBar } from "@/components/site/trust-bar";
+import { FeatureClusters } from "@/components/site/feature-clusters";
+import { IndustryTabs } from "@/components/site/industry-tabs";
+import { FAQ } from "@/components/site/faq";
+import { SiteFooter } from "@/components/site/site-footer";
 
 const CAPTURE_LAYER = [
   {
@@ -129,14 +97,14 @@ export default function Home() {
               timesheets to reconcile at month end.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <a href="#contact">
+              <Link href="/login?mode=sign-up">
                 <Button size="lg">
-                  Request a pilot <ArrowRight />
+                  Start free <ArrowRight />
                 </Button>
-              </a>
-              <a href="#features">
+              </Link>
+              <a href="#contact">
                 <Button size="lg" variant="outline">
-                  See what&apos;s included
+                  Request a pilot
                 </Button>
               </a>
             </div>
@@ -158,26 +126,9 @@ export default function Home() {
         />
       </section>
 
-      {/* Features */}
-      <section id="features" className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="font-serif text-3xl">
-          What&apos;s <span className="italic text-primary">included</span>
-        </h2>
-        <Separator className="mt-4 mb-8" />
+      <TrustBar />
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <Card key={f.name}>
-              <CardHeader>
-                <CardTitle>{f.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>{f.description}</CardDescription>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
+      <FeatureClusters />
 
       {/* How it works / capture layer */}
       <section id="how-it-works" className="mx-auto max-w-6xl px-6 py-16">
@@ -200,6 +151,8 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      <IndustryTabs />
 
       {/* Access */}
       <section id="access" className="mx-auto max-w-6xl px-6 py-16">
@@ -245,23 +198,37 @@ export default function Home() {
         </Table>
       </section>
 
+      <FAQ />
+
       {/* CTA band — two-thirds ink field, per DS-01 section-opener convention */}
       <section className="bg-pac-ink text-pac-paper">
         <div className="mx-auto max-w-6xl px-6 py-16">
           <span className="font-label text-primary">Ready when you are</span>
           <h2 className="mt-4 max-w-xl font-serif text-4xl">
-            Bring AttendPAC to your sites.
+            Ready to see where your team really is?
           </h2>
           <p className="mt-4 max-w-lg text-pac-paper/70">
             One geofenced check-in flow for guards, field staff, and site
             teams — with a live dashboard that tells you who&apos;s on site
-            right now, not who clocked in yesterday.
+            right now, not who clocked in yesterday. Set up your first site
+            in minutes; no credit card required.
           </p>
-          <a href="#contact">
-            <Button size="lg" className="mt-8">
-              Request a pilot <ArrowRight />
-            </Button>
-          </a>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/login?mode=sign-up">
+              <Button size="lg">
+                Start free <ArrowRight />
+              </Button>
+            </Link>
+            <a href="#contact">
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-pac-paper/30 bg-transparent text-pac-paper hover:bg-pac-paper/10 hover:text-pac-paper"
+              >
+                Request a pilot
+              </Button>
+            </a>
+          </div>
         </div>
       </section>
 
@@ -299,13 +266,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-border">
-        <div className="mx-auto max-w-6xl px-6 py-8 text-muted-foreground">
-          <span className="font-label">
-            PAC Africa · Gordian Knotz Technovation · Confidential
-          </span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

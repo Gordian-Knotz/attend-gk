@@ -11,18 +11,25 @@ Engineering delivery: Gordian Knotz Technovation.
 - **shadcn/ui** components, hand-built rather than CLI-installed (see note
   below), style: `new-york`.
 - **Supabase** (Postgres + Auth + RLS) — schema in `supabase/migrations/`.
+- **Recharts** for the attendance trend and per-site charts.
 - **next-themes** for the light/dark toggle.
 - **@fontsource** packages for the brand typefaces — self-hosted, no Google
   Fonts CDN dependency.
 
 ## What's here
 
-- **`/`** — marketing/landing page, with "Log in" / "Sign up" in the header
-  (both go to `/login`) and a separate pilot-request contact form further
-  down the page for prospective clients who aren't ready to self-serve.
-- **`/login`** — Supabase email/password auth. Signing up creates a new
-  account with no organization attached yet; signing in routes you to
-  `/admin`, `/dashboard`, or `/onboarding` depending on your role.
+- **`/`** — marketing/landing page: hero, client band, the full feature
+  inventory grouped into four clusters, the three capture methods, an
+  industry switcher (five industries, deep-linkable as `/#logistics` etc.),
+  the roles table, FAQs, and a pilot-request contact form. "Log in" /
+  "Sign up" in the header both go to `/login`.
+- **`/login`** — Supabase email/password auth, with a "Forgot password?"
+  flow that emails a reset link. Signing up creates a new account with no
+  organization attached yet; signing in routes you to `/admin`,
+  `/dashboard`, or `/onboarding` depending on your role.
+- **`/reset-password`** — where that emailed link lands. Exchanges the
+  recovery code for a short-lived session, takes a new password, then signs
+  out and sends you back to `/login`.
 - **`/onboarding`** — shown to any signed-in user with no `employees` row.
   Lets them name an organization and become its `org_admin`, via a
   dedicated Postgres RPC (`create_organization_for_self`) that bootstraps
@@ -36,8 +43,9 @@ Engineering delivery: Gordian Knotz Technovation.
   offline-queue logic the React Native (Expo) app will use later.
 - **`/admin`** — the admin dashboard. All of Overview, Sites, Staff,
   Schedule, and Devices now query and mutate real data:
-  - **Overview** — today's present/late/absent/on-leave counts, an
-    exceptions table, per-site check-in ratios.
+  - **Overview** — today's present/late/absent/on-leave counts, a 14-day
+    attendance trend chart, an exceptions table, per-site check-in ratios,
+    and a notices panel (post/dismiss org- or site-wide messages).
   - **Sites** — list + add/delete, each showing staff and device counts.
   - **Staff** — roster with role/site, an "Invite staff" flow that sends a
     real Supabase Auth email invite and links the account, and remove.
@@ -46,7 +54,14 @@ Engineering delivery: Gordian Knotz Technovation.
     just the UI).
   - **Devices** — registered biometric terminals per site, register/remove,
     each with an auto-generated webhook secret (partially masked).
-  - **Reports** and **Settings** are still stubs.
+  - **Reports** — 7/14/30-day timesheet: hours worked (from paired
+    check-in/check-out events), attendance rate, late arrivals and
+    absences, the trend and per-site charts, a per-employee table, and a
+    CSV export that matches the table exactly.
+  - **Organizations** — super_admin only, hidden from everyone else: every
+    client org on the platform with plan tier, billing status, and staff
+    and site counts. Read-only; there's no org-switcher yet.
+  - **Settings** is still a stub.
 - **`middleware.ts`** — refreshes the Supabase session and guards
   `/admin/*`, `/dashboard`, and `/onboarding` server-side, per Section 06.
   Passes requests through untouched if Supabase env vars aren't set, so
@@ -70,8 +85,17 @@ Engineering delivery: Gordian Knotz Technovation.
      only gave org_admin/super_admin write access to shifts, leaving out
      managers entirely, despite Section 06 explicitly giving managers
      "build/edit shifts for their site." Added, scoped to their own site.
-4. Run `supabase/seed.sql` — creates one demo org ("Alpha Pride Security")
-   and one demo site ("Two Rivers Mall", Nairobi CBD coordinates).
+   - `supabase/migrations/0005_super_admin_site_read.sql` — RLS fix: 0003
+     gave `super_admin` cross-org *write* access to sites but left the
+     *select* policy org-scoped, so the platform overview could write rows
+     it couldn't read. Brought in line.
+   - `supabase/migrations/0006_notifications.sql` — the `notifications`
+     table (org- or site-scoped notices with an info/warning/critical
+     level) plus its RLS.
+4. Run `supabase/seed.sql` — creates one demo org ("Alpha Pride Security"),
+   one demo site ("Two Rivers Mall", Nairobi CBD coordinates), and two demo
+   notices. Run it after *all* the migrations, not just 0001 — it inserts
+   into `notifications`.
 5. Sign up via `/login` → "Sign up" with whichever email you want as your
    admin account, then run `supabase/setup-admin.sql` in the SQL editor —
    it links that account as `org_admin` of the demo org directly (skipping
@@ -148,19 +172,50 @@ npm run dev
    flags anyone checking in after 7:15 AM org-wide. Once shift-aware
    scheduling logic is added, compare against each employee's actual
    `shifts.start_at` instead.
-2. **Reports and Settings are still stubs.** Reports needs CSV/Excel
-   export (Section 03); Settings needs site geofence editing (currently
-   add/delete only, no edit) and org profile/billing.
-3. **Realtime.** `/admin` re-queries on page load; wiring Supabase
+2. **Settings is still a stub**, and needs site geofence editing (currently
+   add/delete only, no edit) plus org profile/billing. Reports covers the
+   CSV half of Section 03; a direct payroll-provider API push is still open.
+3. **Nothing writes `notifications` automatically.** The intended writers
+   are the exception detector and the biometric webhook bridge, both
+   unbuilt — for now notices are posted by hand from `/admin`.
+4. **Reports assumes today's roster applied to the whole period.** Someone
+   hired last week reads as absent on days before they joined; fixing that
+   needs employment start/end dates on `employees`.
+5. **Realtime.** `/admin` re-queries on page load; wiring Supabase
    Realtime would make "Present today" genuinely live without a refresh.
-4. **Mobile app.** React Native (Expo) — separate codebase — for the
+6. **Mobile app.** React Native (Expo) — separate codebase — for the
    native GPS + selfie check-in flow, reusing the same geofence/offline
    approach as `/dashboard`. The biometric device webhook bridge (the other
    half of Section 04's capture layer — actually receiving pushes from a
    registered terminal) is also unbuilt; `/admin/devices` only manages
    device *records*, not the inbound webhook endpoint yet.
-5. **Multi-org for super_admin.** The RLS now correctly lets `super_admin`
-   see every org, but there's no UI yet to switch between them — only
-   relevant once there's a second real client org on the platform.
-6. Resolve the resourcing conflict flagged in the proposal (Section 01/08)
+7. **Multi-org for super_admin.** `/admin/organizations` now lists every
+   org, but the rest of the dashboard still scopes to the operator's own
+   org — there's no switcher to view another org's sites or staff.
+8. Resolve the resourcing conflict flagged in the proposal (Section 01/08)
    before committing to timing on any of the above.
+
+## Merge note — where this code came from
+
+An earlier prototype of AttendPAC (Next 14 / Tailwind 3 / no component
+library) was folded into this codebase rather than kept alongside it. This
+repo is the base; nothing was carried over wholesale, because the two had
+incompatible data models — `profiles` vs `employees`, and a flat
+`clock_in`/`clock_out` row per day vs the event-sourced `attendance_events`
+here, which is what makes the offline queue correct.
+
+What was rebuilt from it, on this design system: the marketing page's
+feature clusters, industry switcher, FAQs, client band and columned footer;
+the Recharts trend/bar charts (previously wired to placeholder zeroes,
+now to real queries); the super-admin cross-org view; the password-reset
+flow; and the `notifications` table.
+
+What was deliberately left behind: its schema and RLS (one policy let any
+authenticated user insert attendance rows for a colleague in the same org),
+its Supabase clients (they call `cookies()` synchronously, which throws on
+Next 15), its hand-written database types, and its Tailwind 3 theme.
+
+The full audit, the reasoning behind each call, and a file-by-file
+breakdown live in **[`context & sessions/`](context%20&%20sessions/)** —
+start with its README. Read `04-database-and-rls.md` before changing
+anything under `supabase/`.

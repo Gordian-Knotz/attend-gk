@@ -6,7 +6,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const NAV = [
   { label: "Features", href: "#features" },
   { label: "How it works", href: "#how-it-works" },
-  { label: "Access", href: "#access" },
+  { label: "Industries", href: "#industries" },
+  { label: "FAQ", href: "#faq" },
   { label: "Contact", href: "#contact" },
 ];
 
@@ -19,7 +20,7 @@ export function SiteHeader() {
           <span className="font-serif text-xl italic text-primary">Pac</span>
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-6 lg:flex">
           {NAV.map((item) => (
             <a
               key={item.href}

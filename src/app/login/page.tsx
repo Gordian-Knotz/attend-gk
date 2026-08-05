@@ -16,6 +16,28 @@ import {
   CardContent,
 } from "@/components/ui/card";
 
+type Mode = "sign-in" | "sign-up" | "forgot";
+
+const COPY: Record<Mode, { title: string; description: string; submit: string }> = {
+  "sign-in": {
+    title: "Sign in",
+    description:
+      "Staff: use the email your admin set up for you. Admins: your usual login.",
+    submit: "Sign in",
+  },
+  "sign-up": {
+    title: "Create your account",
+    description:
+      "You'll be set up as the admin for a new organization in the next step.",
+    submit: "Create account",
+  },
+  forgot: {
+    title: "Reset your password",
+    description: "We'll email you a link to set a new one.",
+    submit: "Send reset link",
+  },
+};
+
 export default function LoginPage() {
   return (
     <React.Suspense fallback={null}>
@@ -28,14 +50,21 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
-  const initialMode = searchParams.get("mode") === "sign-up" ? "sign-up" : "sign-in";
+  const initialMode: Mode =
+    searchParams.get("mode") === "sign-up" ? "sign-up" : "sign-in";
 
-  const [mode, setMode] = React.useState<"sign-in" | "sign-up">(initialMode);
+  const [mode, setMode] = React.useState<Mode>(initialMode);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [info, setInfo] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
+
+  function switchTo(nextMode: Mode) {
+    setError(null);
+    setInfo(null);
+    setMode(nextMode);
+  }
 
   async function routeSignedInUser(supabase: ReturnType<typeof createClient>) {
     if (next) {
@@ -72,6 +101,21 @@ function LoginForm() {
 
     const supabase = createClient();
 
+    if (mode === "forgot") {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      setLoading(false);
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setInfo(
+        "Check your inbox for a reset link. It expires in an hour — request another if it lapses."
+      );
+      return;
+    }
+
     if (mode === "sign-in") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
@@ -105,6 +149,8 @@ function LoginForm() {
     router.refresh();
   }
 
+  const copy = COPY[mode];
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-secondary/40 px-4">
       <Card className="w-full max-w-sm">
@@ -113,14 +159,8 @@ function LoginForm() {
             <span className="font-serif text-xl">Attend</span>
             <span className="font-serif text-xl italic text-primary">Pac</span>
           </div>
-          <CardTitle className="mt-4">
-            {mode === "sign-in" ? "Sign in" : "Create your account"}
-          </CardTitle>
-          <CardDescription>
-            {mode === "sign-in"
-              ? "Staff: use the email your admin set up for you. Admins: your usual login."
-              : "You'll be set up as the admin for a new organization in the next step."}
-          </CardDescription>
+          <CardTitle className="mt-4">{copy.title}</CardTitle>
+          <CardDescription>{copy.description}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -129,43 +169,65 @@ function LoginForm() {
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={6}
-                required
-              />
-            </div>
+
+            {mode !== "forgot" && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <Label htmlFor="password">Password</Label>
+                  {mode === "sign-in" && (
+                    <button
+                      type="button"
+                      onClick={() => switchTo("forgot")}
+                      className="rounded-sm text-xs text-muted-foreground hover:text-primary"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete={
+                    mode === "sign-in" ? "current-password" : "new-password"
+                  }
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  minLength={6}
+                  required
+                />
+              </div>
+            )}
 
             {info && <p className="text-sm text-muted-foreground">{info}</p>}
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button type="submit" disabled={loading} className="mt-1">
               {loading && <Loader2 className="animate-spin" />}
-              {mode === "sign-in" ? "Sign in" : "Create account"}
+              {copy.submit}
             </Button>
 
             <button
               type="button"
-              onClick={() => {
-                setError(null);
-                setInfo(null);
-                setMode(mode === "sign-in" ? "sign-up" : "sign-in");
-              }}
+              onClick={() =>
+                switchTo(
+                  mode === "sign-in"
+                    ? "sign-up"
+                    : mode === "sign-up"
+                      ? "sign-in"
+                      : "sign-in"
+                )
+              }
               className="text-center text-xs text-muted-foreground hover:text-foreground"
             >
-              {mode === "sign-in"
-                ? "New here? Create an organization"
-                : "Already have an account? Sign in"}
+              {mode === "sign-in" && "New here? Create an organization"}
+              {mode === "sign-up" && "Already have an account? Sign in"}
+              {mode === "forgot" && "Back to sign in"}
             </button>
           </form>
         </CardContent>

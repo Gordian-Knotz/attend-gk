@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminTopbar } from "@/components/admin/topbar";
 import { AdminIdentityProvider } from "@/components/admin/identity-context";
-import { Reveal } from "@/components/motion/reveal";
 
 export const metadata: Metadata = {
   title: "AttendPAC — Admin",
@@ -47,16 +46,12 @@ export default async function AdminLayout({
         <AdminSidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <AdminTopbar />
-          {/* One reveal around the whole page rather than per-card: this
-              <main> is its own scroll container, and ScrollTrigger instances
-              inside it would measure against the window instead. Wrapping
-              here keeps admin pages animating on navigation without any
-              below-the-fold card risking a stuck opacity:0. */}
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">
-            <Reveal distance={16} duration={0.45}>
-              {children}
-            </Reveal>
-          </main>
+          {/* Entry animation lives in template.tsx, not here — a layout
+              persists across sibling-route navigation, so it would only
+              ever run on first load. Also avoids ScrollTrigger inside this
+              scroll container, which measures against the window and can
+              strand a below-the-fold card at opacity:0. */}
+          <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
         </div>
       </div>
     </AdminIdentityProvider>

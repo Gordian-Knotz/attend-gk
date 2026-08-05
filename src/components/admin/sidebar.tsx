@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion, useReducedMotion } from "motion/react";
 import {
   LayoutDashboard,
   Building2,
@@ -11,6 +12,7 @@ import {
   FileBarChart,
   Settings,
   Globe,
+  type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -30,9 +32,59 @@ const PLATFORM_NAV = [
   { label: "Organizations", href: "/admin/organizations", icon: Globe },
 ] as const;
 
+/**
+ * The active highlight is a single shared element (`layoutId`), so moving
+ * between sections slides it rather than blinking it from one row to the
+ * next — including across the Platform group divider.
+ */
+const ACTIVE_LAYOUT_ID = "admin-nav-active";
+
+function NavItem({
+  label,
+  href,
+  icon: Icon,
+  active,
+  reduceMotion,
+}: {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  active: boolean;
+  reduceMotion: boolean | null;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "relative flex items-center gap-3 rounded-sm px-3 py-2 text-sm transition-colors",
+        active
+          ? "text-primary-foreground"
+          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+      )}
+    >
+      {active &&
+        (reduceMotion ? (
+          <span className="absolute inset-0 rounded-sm bg-primary" />
+        ) : (
+          <motion.span
+            layoutId={ACTIVE_LAYOUT_ID}
+            className="absolute inset-0 rounded-sm bg-primary"
+            transition={{ type: "spring", stiffness: 420, damping: 34 }}
+          />
+        ))}
+      <span className="relative flex items-center gap-3">
+        <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+        {label}
+      </span>
+    </Link>
+  );
+}
+
 export function AdminSidebar() {
   const pathname = usePathname();
   const { role } = useAdminIdentity();
+  const reduceMotion = useReducedMotion();
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card md:flex">
@@ -44,45 +96,31 @@ export function AdminSidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 p-3">
-        {NAV.map(({ label, href, icon: Icon }) => {
-          const active =
-            href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-3 rounded-sm px-3 py-2 text-sm transition-colors",
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              )}
-            >
-              <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-              {label}
-            </Link>
-          );
-        })}
+        {NAV.map((item) => (
+          <NavItem
+            key={item.href}
+            {...item}
+            active={
+              item.href === "/admin"
+                ? pathname === "/admin"
+                : pathname.startsWith(item.href)
+            }
+            reduceMotion={reduceMotion}
+          />
+        ))}
 
         {role === "super_admin" && (
           <>
             <span className="font-label mt-4 px-3 py-2 text-muted-foreground">
               Platform
             </span>
-            {PLATFORM_NAV.map(({ label, href, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "flex items-center gap-3 rounded-sm px-3 py-2 text-sm transition-colors",
-                  pathname.startsWith(href)
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                )}
-              >
-                <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-                {label}
-              </Link>
+            {PLATFORM_NAV.map((item) => (
+              <NavItem
+                key={item.href}
+                {...item}
+                active={pathname.startsWith(item.href)}
+                reduceMotion={reduceMotion}
+              />
             ))}
           </>
         )}

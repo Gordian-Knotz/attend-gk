@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { Check } from "lucide-react";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -99,6 +100,7 @@ const IDS = INDUSTRIES.map((i) => i.id) as readonly string[];
 
 export function IndustryTabs() {
   const [active, setActive] = React.useState<string>(INDUSTRIES[0].id);
+  const reduceMotion = useReducedMotion();
 
   // Footer links deep-link straight to an industry (e.g. /#logistics). The
   // hash also matches the trigger's element id, so the browser handles the
@@ -127,8 +129,26 @@ export function IndustryTabs() {
       <Tabs value={active} onValueChange={setActive}>
         <TabsList className="h-auto flex-wrap">
           {INDUSTRIES.map((industry) => (
-            <TabsTrigger key={industry.id} id={industry.id} value={industry.id}>
+            <TabsTrigger
+              key={industry.id}
+              id={industry.id}
+              value={industry.id}
+              // The shared Tabs primitive draws the active state as a static
+              // bottom border. Suppressed here so a single shared underline
+              // can slide between triggers instead of jumping.
+              className="relative data-[state=active]:border-transparent"
+            >
               {industry.label}
+              {industry.id === active &&
+                (reduceMotion ? (
+                  <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary" />
+                ) : (
+                  <motion.span
+                    layoutId="industry-tab-underline"
+                    className="absolute inset-x-0 -bottom-px h-0.5 bg-primary"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  />
+                ))}
             </TabsTrigger>
           ))}
         </TabsList>

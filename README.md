@@ -219,3 +219,4 @@ The full audit, the reasoning behind each call, and a file-by-file
 breakdown live in **[`context & sessions/`](context%20&%20sessions/)** —
 start with its README. Read `04-database-and-rls.md` before changing
 anything under `supabase/`.
+"# attend-gk" 

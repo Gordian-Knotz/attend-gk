@@ -13,6 +13,7 @@ import "@fontsource-variable/source-serif-4/wght.css";
 import "@fontsource-variable/source-serif-4/wght-italic.css";
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { PowerSyncProvider } from "@/lib/powersync/provider";
 
 export const metadata: Metadata = {
   title: "AttendPAC — Workforce Attendance & Time Management",
@@ -34,7 +35,9 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          {children}
+          {/* No-ops until NEXT_PUBLIC_POWERSYNC_URL is set, so the
+              online-only build is unaffected. */}
+          <PowerSyncProvider>{children}</PowerSyncProvider>
         </ThemeProvider>
       </body>
     </html>

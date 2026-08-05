@@ -1,0 +1,58 @@
+# PowerSync sync rules — AttendPAC
+#
+# Paste into the PowerSync dashboard (Validate, then Deploy). This file is
+# the source of truth; the dashboard copy is a deployment artifact.
+#
+# Scope: one employee's own slice, matching src/lib/powersync/schema.ts.
+# The admin dashboard is an online tool and is deliberately not synced —
+# syncing a whole org's attendance history to every device would be a large
+# footprint for no offline benefit.
+#
+# auth.user_id() is the Supabase auth.users UUID, which is also the primary
+# key of `employees` (employees.id references auth.users.id).
+#
+# Column lists are explicit rather than SELECT *: pay_rate and
+# employment_type live on `employees` and have no business being on a
+# shared kiosk device, and biometric_devices.webhook_secret must never
+# leave the server.
+
+config:
+  edition: 3
+
+streams:
+  # The signed-in employee's own record.
+  own_employee:
+    auto_subscribe: true
+    queries:
+      - SELECT id, org_id, site_id, full_name, role
+        FROM employees
+        WHERE id = auth.user_id()
+
+  # Only the site they're assigned to — this is what the client-side
+  # geofence pre-check reads so it can give instant feedback offline.
+  own_site:
+    auto_subscribe: true
+    queries:
+      - SELECT sites.id, sites.org_id, sites.name,
+               sites.geofence_lat, sites.geofence_lng, sites.geofence_radius_m
+        FROM sites
+        INNER JOIN employees ON employees.site_id = sites.id
+        WHERE employees.id = auth.user_id()
+
+  # Their own roster, so "this week's shifts" renders offline.
+  own_shifts:
+    auto_subscribe: true
+    queries:
+      - SELECT id, site_id, employee_id, start_at, end_at, status
+        FROM shifts
+        WHERE employee_id = auth.user_id()
+
+  # Their own punches. Written locally while offline, uploaded on
+  # reconnect, and read back to show "currently clocked in".
+  own_attendance:
+    auto_subscribe: true
+    queries:
+      - SELECT id, employee_id, org_id, site_id, source, event_type,
+               occurred_at, gps_lat, gps_lng, distance_m
+        FROM attendance_events
+        WHERE employee_id = auth.user_id()

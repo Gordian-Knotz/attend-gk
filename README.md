@@ -12,6 +12,14 @@ Engineering delivery: Gordian Knotz Technovation.
   below), style: `new-york`.
 - **Supabase** (Postgres + Auth + RLS) — schema in `supabase/migrations/`.
 - **Recharts** for the attendance trend and per-site charts.
+- **Motion** (formerly Framer Motion — the `motion` package) for reveals,
+  page transitions and the sliding nav indicators.
+- **React Bits** components, vendored into `src/components/reactbits/` and
+  used through brand wrappers. See
+  `context & sessions/07-ui-motion-layer.md`.
+- **PowerSync** (`@powersync/web`) for offline check-in — wired but inert
+  until `NEXT_PUBLIC_POWERSYNC_URL` is set. See
+  `context & sessions/08-powersync-offline.md`.
 - **next-themes** for the light/dark toggle.
 - **@fontsource** packages for the brand typefaces — self-hosted, no Google
   Fonts CDN dependency.

@@ -86,10 +86,23 @@ This project installs **`motion`, `gsap` and `ogl`** only. The `three` /
 | `AnimatedContent` | gsap | `Reveal` → everywhere |
 | `BlurText` | motion | `BlurLabel` → mono eyebrows |
 | `Aurora` | ogl | `HeroBackdrop` |
+| `RotatingText` | motion | `HeroRotator` → the hero's "Built for ___" |
+| `GlareHover` | — | `FeatureCard`, and the hero preview card |
+| `ShapeGrid` | — | `CtaTexture` → hexagon field behind the CTA band |
 | `SpotlightCard` | — | superseded, see below |
 
 `LogoLoop` was pulled and then removed — a marquee of five text names reads
 sparse, and it was the only file producing lint errors.
+
+`TiltedCard` was evaluated and rejected: it takes an `imageSrc` and builds
+the card around an `<img>`, but the hero preview is DOM-built, so there's
+nothing to hand it.
+
+`MagicBento` was evaluated and rejected for the feature cards. It's the
+obvious choice on paper — a purpose-built bento features grid — but it's
+858 lines hardcoded around `#120F17` and `rgba(132,0,255)`, renders only on
+a dark field, and would break under the light/dark toggle. `GlareHover` is
+109 lines and fully prop-driven, so it themes cleanly both ways.
 
 **These files are kept unmodified on purpose**, so re-pulling a component
 doesn't clobber local fixes. `eslint.config.mjs` therefore relaxes three
@@ -157,10 +170,11 @@ Chosen intensity: **expressive**. Scope: **everywhere**.
 
 | Surface | Treatment |
 |---|---|
-| Hero | Aurora backdrop, `BlurLabel` eyebrow, `RevealHeading` h1 |
+| Hero | Aurora backdrop, `BlurLabel` eyebrow, `RevealHeading` h1, `HeroRotator`, glare on the preview card |
 | Trust bar | `Reveal` |
-| Feature clusters | `RevealHeading` + staggered `Reveal` per cluster |
+| Feature clusters | `RevealHeading` + staggered `Reveal` + `FeatureCard` glare |
 | Capture cards | `SpotlightCard` + staggered `Reveal` |
+| CTA band | `CtaTexture` hexagon grid, `BlurLabel`, `RevealHeading` |
 | Industry tabs | `RevealHeading` |
 | Access table | `RevealHeading` + `Reveal` |
 | FAQ | `RevealHeading` + `Reveal` |
@@ -182,25 +196,78 @@ it animates on every navigation with no scroll dependency.
 If per-card reveals are ever wanted in admin, `AnimatedContent` takes a
 `container` prop — pass the scrolling `<main>`.
 
+## What the browser pass found
+
+Everything above type-checked, linted and built clean **before** anyone
+looked at it. A single pass with Playwright over both themes then turned up
+three real defects. Worth remembering next time the temptation is to ship
+on a green build.
+
+**1. The Aurora backdrop was clipped to its container.** Measured
+`x=100, width=1152` against a 1366 viewport: `HeroBackdrop` sat inside
+`<section class="mx-auto max-w-6xl">`, so `inset-x-0` resolved to the
+container, not the page. The wash ended in two hard vertical edges. Barely
+readable in dark mode, glaring on paper.
+
+Fixed by moving it onto a full-bleed wrapper. The mask also changed from
+`linear-gradient(to bottom, …)` to a radial — a bottom-only fade still
+leaves crisp left and right edges even once the element is full width.
+Opacity dropped from 45/60% to 25/50%; on paper the original read as a
+muddy salmon slab.
+
+**2. The ink CTA band was invisible in dark mode.** `bg-pac-ink` on a page
+whose background *is* `--pac-ink` has zero contrast, and `defaultTheme` is
+`dark` — so the primary conversion block simply merged into the page. It
+lifts to `pac-graphite` with hairline rules in dark now. Worth generalising:
+any DS-01 "ink field" device needs a dark-mode counterpart, because the
+paper/ink inversion removes the contrast the device depends on.
+
+**3. Feature card glare was too fast.** 750ms crossed the card before the
+eye caught it, which read as a flicker rather than light. Now 1600ms, wider
+(`glareSize` 260 → 340) and dimmer (`glareOpacity` 0.18 → 0.14).
+
+Also fixed while in there: cluster leads are one or two lines depending on
+the card, so the rule beneath them sat at different heights across a row —
+they now have a two-line floor.
+
+### A false alarm worth recording
+
+A full-page screenshot showed the CTA and Contact headings missing. They're
+fine — `fullPage` expands the viewport so every `whileInView` fires at once,
+and the capture happens before those animations finish. Scrolling to the
+section normally showed both.
+
+It did surface something real though: `RevealHeading` renders
+`opacity: 0` into the SSR HTML, so **headings stay invisible if JS never
+runs**. Inherent to scroll-triggered reveals, not a bug introduced here,
+but it's a live decision — see [06-next-steps.md](06-next-steps.md).
+
 ## Verification
 
 ```
 tsc --noEmit  ✓
 next lint     ✓ no warnings or errors
-next build    ✓
+next build    ✓  18 routes,  /  = 270 kB
 ```
 
-**Not verified visually.** No browser was driven during this session, so the
-Aurora backdrop's density, the spotlight's intensity, and the reveal timing
-are unreviewed. Those are exactly the values most likely to need a nudge —
-all are single constants in the files listed above.
+Driven in a browser at 1366×1000 in both themes: backdrop full-bleed with
+no horizontal overflow (`scrollWidth === innerWidth`), card rules aligned
+across rows, CTA band distinct, zero console errors.
+
+Still unreviewed: mobile widths, and every route behind auth.
 
 ## Dialling it back
 
 Each layer detaches independently:
 
-- **Backdrop only** — delete `<HeroBackdrop />` from `src/app/page.tsx`,
-  then `npm uninstall ogl` and remove `reactbits/Aurora.tsx`.
+- **Backdrop only** — delete `<HeroBackdrop />` from `src/app/page.tsx`
+  (leave the full-bleed wrapper, it's harmless), then `npm uninstall ogl`
+  and remove `reactbits/Aurora.tsx`.
+- **CTA texture** — delete `<CtaTexture />` from `src/app/page.tsx` and
+  remove `reactbits/ShapeGrid.tsx`. Keep the `dark:bg-pac-graphite` on that
+  section regardless; it's a contrast fix, not decoration.
+- **Card glare** — `FeatureCard` and `HeroPreview` both fall back to a
+  plain bordered card; drop the `GlareHover` branch in each.
 - **All scroll reveals** — make `Reveal` return `<div className={className}>
   {children}</div>` unconditionally. One edit, applies everywhere.
 - **Admin only** — remove the `Reveal` from `src/app/admin/layout.tsx`.

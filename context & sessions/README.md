@@ -21,7 +21,10 @@ commit that closed that session.
 
 ## Where we left off — 6 Aug 2026
 
-Working tree clean, `next build` / `next lint` / `tsc` all green.
+Working tree clean, `next build` / `next lint` / `tsc` all green. The
+landing page has now been reviewed in a browser in both themes; three
+defects were found and fixed (see the end of
+[07-ui-motion-layer.md](07-ui-motion-layer.md)).
 
 **Blocked on you, in order:**
 
@@ -40,10 +43,15 @@ and `/checkin` to read and write local SQLite, dropping the localStorage
 queue. Held back deliberately — see the end of
 [08-powersync-offline.md](08-powersync-offline.md).
 
-**Never visually reviewed.** No browser was driven all session. The Aurora
-hero backdrop, the GlareHover feature cards, the spotlight intensity and
-the reveal timing are all unlooked-at. Each is a single constant if
-anything needs a nudge.
+**Still unreviewed visually:** mobile widths, and every route behind auth
+(`/admin/*`, `/dashboard`, `/checkin`, `/onboarding`). Only the landing
+page has been looked at, and only at 1366×1000.
+
+**Open design decision:** `RevealHeading` renders `opacity: 0` into the SSR
+HTML, so section headings stay invisible if JS never runs. Inherent to
+scroll-triggered reveals. Options are to accept it, to reveal on mount
+rather than on scroll, or to drop `initial` and animate from a CSS-visible
+state.
 
 **Also open:** generate database types (`supabase gen types`) — the
 Supabase client is still untyped; the stray `C:\Users\PAC\package-lock.json`

@@ -30,6 +30,7 @@ import { RevealHeading } from "@/components/motion/reveal-heading";
 import { BlurLabel } from "@/components/motion/blur-label";
 import { HeroBackdrop } from "@/components/site/hero-backdrop";
 import { HeroRotator } from "@/components/site/hero-rotator";
+import { CtaTexture } from "@/components/site/cta-texture";
 import { SiteHeader } from "@/components/site/site-header";
 import { StatTiles } from "@/components/site/stat-tiles";
 import { HeroPreview } from "@/components/site/hero-preview";
@@ -82,9 +83,12 @@ export default function Home() {
     <div className="min-h-screen">
       <SiteHeader />
 
-      {/* Hero */}
-      <section className="relative mx-auto max-w-6xl px-6 pt-16 pb-10">
+      {/* Hero. The backdrop sits on this full-bleed wrapper, not on the
+          max-w container below — inside it, the wash would end in two hard
+          vertical edges at the container bounds. */}
+      <div className="relative overflow-hidden">
         <HeroBackdrop />
+        <section className="mx-auto max-w-6xl px-6 pt-16 pb-10">
         <div className="grid items-center gap-14 lg:grid-cols-[1.1fr_1fr]">
           <div>
             <BlurLabel
@@ -137,7 +141,8 @@ export default function Home() {
             { value: "1", label: "Dashboard for every site" },
           ]}
         />
-      </section>
+        </section>
+      </div>
 
       <TrustBar />
 
@@ -217,9 +222,17 @@ export default function Home() {
 
       <FAQ />
 
-      {/* CTA band — two-thirds ink field, per DS-01 section-opener convention */}
-      <section className="bg-pac-ink text-pac-paper">
-        <div className="mx-auto max-w-6xl px-6 py-16">
+      {/* CTA band — an ink field against paper, per the DS-01 section-opener
+          convention. In dark mode the page is already ink, so the band had
+          zero contrast and the whole CTA vanished into the page; it lifts to
+          graphite with hairline rules there instead. */}
+      <section className="relative isolate overflow-hidden border-y border-transparent bg-pac-ink text-pac-paper dark:border-border dark:bg-pac-graphite">
+        <CtaTexture />
+        {/* Content keeps normal pointer events — making it inert so the grid
+            could catch hover underneath would cost text selection, which
+            isn't worth it. The grid still lights up across the band's empty
+            right-hand side, which is where it's visible anyway. */}
+        <div className="relative mx-auto max-w-6xl px-6 py-16">
           <BlurLabel
             text="Ready when you are"
             className="font-label text-primary"

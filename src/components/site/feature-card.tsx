@@ -35,7 +35,7 @@ export function FeatureCard({
   );
 
   if (reduceMotion) {
-    return <div className={cn(surface, "p-6")}>{children}</div>;
+    return <div className={cn(surface, "p-7")}>{children}</div>;
   }
 
   return (
@@ -46,17 +46,21 @@ export function FeatureCard({
       borderColor="var(--border)"
       borderRadius="0.2rem"
       glareColor="#E8532E"
-      glareOpacity={0.18}
-      glareAngle={-35}
-      glareSize={260}
-      transitionDuration={750}
+      // Slow and wide. At 750ms the sweep read as a flicker — it crossed
+      // the card before the eye caught it, which made the card feel
+      // twitchy rather than lit. A long, low-opacity pass reads as light
+      // moving across paper, which is the point.
+      glareOpacity={0.14}
+      glareAngle={-30}
+      glareSize={340}
+      transitionDuration={1600}
       className={cn(
         "!place-items-stretch transition-colors duration-300 hover:border-primary/40",
         className
       )}
       style={{ cursor: "default" }}
     >
-      <div className="w-full p-6">{children}</div>
+      <div className="w-full p-7">{children}</div>
     </GlareHover>
   );
 }

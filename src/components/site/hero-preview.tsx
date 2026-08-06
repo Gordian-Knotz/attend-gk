@@ -1,8 +1,12 @@
+"use client";
+
 import { MapPin } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import GlareHover from "@/components/reactbits/GlareHover";
 
 const CHECK_INS = [
   { name: "Wanjiku M.", role: "Site guard · Gate 2", status: "Present", time: "6:58 AM" },
@@ -18,6 +22,36 @@ const STATUS_VARIANT = {
 } as const;
 
 export function HeroPreview() {
+  const reduceMotion = useReducedMotion();
+
+  // Same light-across-paper sweep as the feature cards, so the hero mock
+  // and the cards below read as one system. Pure decoration over a static
+  // mock, so it's dropped wholesale under reduced motion.
+  const Shell = reduceMotion
+    ? ({ children }: { children: React.ReactNode }) => (
+        <div className="w-full max-w-sm rounded-sm border border-border bg-card shadow-xl">
+          {children}
+        </div>
+      )
+    : ({ children }: { children: React.ReactNode }) => (
+        <GlareHover
+          width="100%"
+          height="100%"
+          background="var(--card)"
+          borderColor="var(--border)"
+          borderRadius="0.2rem"
+          glareColor="#E8532E"
+          glareOpacity={0.16}
+          glareAngle={-30}
+          glareSize={320}
+          transitionDuration={1600}
+          className="!place-items-stretch w-full max-w-sm shadow-xl"
+          style={{ cursor: "default" }}
+        >
+          {children}
+        </GlareHover>
+      );
+
   return (
     <div className="relative">
       <div
@@ -25,7 +59,7 @@ export function HeroPreview() {
         className="absolute -inset-6 -z-10 rounded-full bg-primary/25 blur-3xl"
       />
 
-      <div className="w-full max-w-sm rounded-sm border border-border bg-card shadow-xl">
+      <Shell>
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
             <div className="font-serif text-base leading-none">
@@ -86,7 +120,7 @@ export function HeroPreview() {
             <div className="h-full w-[93%] rounded-full bg-primary" />
           </div>
         </div>
-      </div>
+      </Shell>
     </div>
   );
 }

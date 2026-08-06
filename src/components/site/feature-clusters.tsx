@@ -1,3 +1,10 @@
+import {
+  Fingerprint,
+  CalendarClock,
+  LayoutDashboard,
+  FileBarChart,
+} from "lucide-react";
+
 import { Separator } from "@/components/ui/separator";
 import { Reveal } from "@/components/motion/reveal";
 import { RevealHeading } from "@/components/motion/reveal-heading";
@@ -12,6 +19,7 @@ import { FeatureCard } from "@/components/site/feature-card";
  */
 const CLUSTERS = [
   {
+    icon: Fingerprint,
     group: "Clock-in & verification",
     lead: "How the hours get captured in the first place.",
     features: [
@@ -22,6 +30,7 @@ const CLUSTERS = [
     ],
   },
   {
+    icon: CalendarClock,
     group: "Scheduling & leave",
     lead: "Who is meant to be where, and who asked not to be.",
     features: [
@@ -32,6 +41,7 @@ const CLUSTERS = [
     ],
   },
   {
+    icon: LayoutDashboard,
     group: "Management",
     lead: "What supervisors and admins do with it day to day.",
     features: [
@@ -42,6 +52,7 @@ const CLUSTERS = [
     ],
   },
   {
+    icon: FileBarChart,
     group: "Reporting & payroll",
     lead: "What comes out the other end, at month close.",
     features: [
@@ -67,17 +78,28 @@ export function FeatureClusters() {
       <Separator className="mt-4 mb-10" />
 
       <div className="grid gap-4 md:grid-cols-2">
-        {CLUSTERS.map((cluster, i) => (
+        {CLUSTERS.map(({ icon: Icon, ...cluster }, i) => (
           <Reveal key={cluster.group} delay={(i % 2) * 0.1} className="h-full">
-            <FeatureCard className="h-full">
-              <h3 className="font-label text-primary">{cluster.group}</h3>
-              <p className="mt-2 font-serif text-lg">{cluster.lead}</p>
+            <FeatureCard className="group/card h-full">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-primary transition-colors duration-300 group-hover/card:bg-primary group-hover/card:text-primary-foreground">
+                  <Icon className="size-4" strokeWidth={1.75} />
+                </span>
+                <h3 className="font-label text-primary">{cluster.group}</h3>
+              </div>
 
-              <dl className="mt-5 border-t border-border">
+              {/* Two-line floor: the leads are one or two lines depending on
+                  the card, and without it the rules below sit at different
+                  heights across a row. */}
+              <p className="mt-4 font-serif text-xl leading-snug sm:min-h-14">
+                {cluster.lead}
+              </p>
+
+              <dl className="mt-6 border-t-2 border-foreground/80">
                 {cluster.features.map(([name, description]) => (
                   <div
                     key={name}
-                    className="border-b border-border py-3 last:border-0 sm:grid sm:grid-cols-[minmax(0,9rem)_1fr] sm:gap-4"
+                    className="border-b border-border py-3 last:border-0 sm:grid sm:grid-cols-[minmax(0,9.5rem)_1fr] sm:gap-4"
                   >
                     <dt className="text-sm font-medium">{name}</dt>
                     <dd className="mt-0.5 text-sm text-muted-foreground sm:mt-0">

@@ -28,12 +28,10 @@ import { SpotlightCard } from "@/components/ui/spotlight-card";
 import { Reveal } from "@/components/motion/reveal";
 import { RevealHeading } from "@/components/motion/reveal-heading";
 import { BlurLabel } from "@/components/motion/blur-label";
-import { HeroBackdrop } from "@/components/site/hero-backdrop";
-import { HeroRotator } from "@/components/site/hero-rotator";
+import { HeroThreads } from "@/components/site/hero-threads";
 import { CtaTexture } from "@/components/site/cta-texture";
 import { SiteHeader } from "@/components/site/site-header";
 import { StatTiles } from "@/components/site/stat-tiles";
-import { HeroPreview } from "@/components/site/hero-preview";
 import { ContactForm } from "@/components/site/contact-form";
 import { TrustBar } from "@/components/site/trust-bar";
 import { FeatureClusters } from "@/components/site/feature-clusters";
@@ -83,52 +81,52 @@ export default function Home() {
     <div className="min-h-screen">
       <SiteHeader />
 
-      {/* Hero. The backdrop sits on this full-bleed wrapper, not on the
-          max-w container below — inside it, the wash would end in two hard
+      {/* Hero. Centred composition ported from attend-v3.
+          The backdrop sits on this full-bleed wrapper, not on the max-w
+          container below — inside it, the field would end in two hard
           vertical edges at the container bounds. */}
       <div className="relative overflow-hidden">
-        <HeroBackdrop />
-        <section className="mx-auto max-w-6xl px-6 pt-16 pb-10">
-        <div className="grid items-center gap-14 lg:grid-cols-[1.1fr_1fr]">
-          <div>
-            <BlurLabel
-              text="Workforce attendance & time management"
-              className="font-label text-primary"
-            />
-            <RevealHeading
-              as="h1"
-              delay={0.15}
-              className="mt-4 max-w-xl font-serif text-5xl leading-[1.05] md:text-6xl"
-            >
-              Clock in from the field.{" "}
-              <span className="italic text-primary">See it live</span> from
-              the office.
-            </RevealHeading>
+        <HeroThreads />
+        <section className="mx-auto max-w-6xl px-6 pt-20 pb-12">
+        <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
+          <BlurLabel
+            text="Workforce attendance & time management"
+            className="font-label text-primary"
+          />
+          <RevealHeading
+            as="h1"
+            delay={0.15}
+            className="mt-5 font-serif text-5xl leading-[1.05] md:text-6xl"
+          >
+            Clock in from the field.{" "}
+            {/* nowrap keeps the italic accent phrase intact. Centred and
+                narrower than the old two-column hero, the line break landed
+                mid-phrase ("…field. See / it live from…"), which reads as two
+                fragments rather than the one accent DS-01 builds every
+                heading around. */}
+            <span className="whitespace-nowrap italic text-primary">
+              See it live
+            </span>{" "}
+            from the office.
+          </RevealHeading>
 
-            <HeroRotator />
-
-            <p className="mt-4 max-w-lg text-muted-foreground">
-              For teams whose people aren&apos;t at a desk. Staff clock in
-              from their own phone or a fingerprint scanner you already have,
-              and managers see who&apos;s actually on site, in real time —
-              not a stack of timesheets to reconcile at month end.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/login?mode=sign-up">
-                <Button size="lg">
-                  Start free <ArrowRight />
-                </Button>
-              </Link>
-              <a href="#contact">
-                <Button size="lg" variant="outline">
-                  Request a pilot
-                </Button>
-              </a>
-            </div>
-          </div>
-
-          <div className="flex justify-center lg:justify-end">
-            <HeroPreview />
+          <p className="mt-6 max-w-xl text-muted-foreground">
+            For teams whose people aren&apos;t at a desk. Staff clock in
+            from their own phone or a fingerprint scanner you already have,
+            and managers see who&apos;s actually on site, in real time —
+            not a stack of timesheets to reconcile at month end.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/login?mode=sign-up">
+              <Button size="lg">
+                Start free <ArrowRight />
+              </Button>
+            </Link>
+            <a href="#contact">
+              <Button size="lg" variant="outline">
+                Request a pilot
+              </Button>
+            </a>
           </div>
         </div>
 

@@ -13,9 +13,9 @@ import { PostNoticeDialog } from "./notice-dialog";
 import { DismissNoticeButton } from "./dismiss-notice-button";
 import { PageHeader } from "@/components/admin/page-header";
 import { Callout } from "@/components/callout";
-import { StatTiles } from "@/components/site/stat-tiles";
+import { StatValue } from "@/components/site/stat-value";
+import { BentoGrid, BentoCard } from "@/components/motion/bento";
 import {
-  Card,
   CardHeader,
   CardTitle,
   CardContent,
@@ -51,6 +51,15 @@ const NOTICE_VARIANT: Record<string, "outline" | "attention" | "destructive"> = 
   warning: "attention",
   critical: "destructive",
 };
+
+// The four KPI tiles, as bento cells. `key` indexes the `kpi` object built
+// below, so a label can't drift away from the number it sits under.
+const KPI_TILES = [
+  { key: "present", label: "Present today" },
+  { key: "late", label: "Late" },
+  { key: "absent", label: "Absent" },
+  { key: "onLeave", label: "On leave" },
+] as const;
 
 export default async function AdminOverviewPage() {
   const identity = await getEmployeeContext();
@@ -203,86 +212,39 @@ export default async function AdminOverviewPage() {
         </Callout>
       )}
 
-      <StatTiles
-        tiles={[
-          { value: String(kpi.present), label: "Present today" },
-          { value: String(kpi.late), label: "Late" },
-          { value: String(kpi.absent), label: "Absent" },
-          { value: String(kpi.onLeave), label: "On leave" },
-        ]}
-      />
+      <BentoGrid>
+        {KPI_TILES.map(({ key, label }) => (
+          <BentoCard
+            key={key}
+            particles
+            magnetism
+            ripple
+            className="border-t-2 border-t-foreground"
+          >
+            <CardContent>
+              <div className="font-serif text-4xl leading-none tabular-nums">
+                <StatValue value={String(kpi[key])} />
+              </div>
+              <div className="font-label mt-2 text-muted-foreground">
+                {label}
+              </div>
+            </CardContent>
+          </BentoCard>
+        ))}
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Attendance trend</CardTitle>
-            <Badge variant="outline">Last 14 days</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <AttendanceTrendChart data={trendData} />
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <Card>
+        <BentoCard className="sm:col-span-2 lg:col-span-3">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Today&apos;s exceptions</CardTitle>
-              <Badge variant="outline">{exceptions.length} flagged</Badge>
+              <CardTitle>Attendance trend</CardTitle>
+              <Badge variant="outline">Last 14 days</Badge>
             </div>
           </CardHeader>
           <CardContent>
-            {exceptions.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No exceptions {hasAnyData ? "so far today." : "— add staff to see data here."}
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Site</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Note</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {exceptions.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.fullName}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {r.siteId ? siteNameById.get(r.siteId) : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={STATUS_VARIANT[r.status!]}>
-                          {STATUS_LABEL[r.status!]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {r.checkInTime
-                          ? new Date(r.checkInTime).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {r.status === "late" && "Checked in after 7:15 AM"}
-                        {r.status === "absent" && "No check-in today"}
-                        {r.status === "on_leave" && "Approved leave"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+            <AttendanceTrendChart data={trendData} />
           </CardContent>
-        </Card>
+        </BentoCard>
 
-        <div className="flex flex-col gap-4">
-        <Card>
+        <BentoCard className="sm:col-span-2 lg:col-span-1">
           <CardHeader>
             <CardTitle>Sites</CardTitle>
           </CardHeader>
@@ -324,9 +286,70 @@ export default async function AdminOverviewPage() {
               View all sites <ArrowUpRight className="size-3.5" />
             </a>
           </CardContent>
-        </Card>
+        </BentoCard>
 
-        <Card>
+        <BentoCard className="sm:col-span-2 lg:col-span-3">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Today&apos;s exceptions</CardTitle>
+              <Badge variant="outline">{exceptions.length} flagged</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {exceptions.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No exceptions {hasAnyData ? "so far today." : "— add staff to see data here."}
+              </p>
+            ) : (
+              /* BentoCard clips (overflow-hidden, for the particles and the
+                 glow ring), so a wide table has to scroll in its own box
+                 rather than relying on the card to let it spill. */
+              <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Site</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Note</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {exceptions.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium">{r.fullName}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {r.siteId ? siteNameById.get(r.siteId) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={STATUS_VARIANT[r.status!]}>
+                          {STATUS_LABEL[r.status!]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {r.checkInTime
+                          ? new Date(r.checkInTime).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {r.status === "late" && "Checked in after 7:15 AM"}
+                        {r.status === "absent" && "No check-in today"}
+                        {r.status === "on_leave" && "Approved leave"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              </div>
+            )}
+          </CardContent>
+        </BentoCard>
+
+        <BentoCard className="sm:col-span-2 lg:col-span-1">
           <CardHeader>
             <CardTitle>Notices</CardTitle>
           </CardHeader>
@@ -370,9 +393,8 @@ export default async function AdminOverviewPage() {
               ))
             )}
           </CardContent>
-        </Card>
-        </div>
-      </div>
+        </BentoCard>
+      </BentoGrid>
     </div>
   );
 }

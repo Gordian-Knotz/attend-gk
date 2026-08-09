@@ -143,3 +143,76 @@
     @apply font-mono uppercase tracking-widest text-xs;
   }
 }
+
+/* ── Bento proximity glow ──────────────────────────────────────────────────
+   Ported from attend-v3's MagicBento, rebuilt on DS-01 tokens.
+
+   The original hardcodes `rgba(132, 0, 255, …)` against a `#120F17` field —
+   dark-only, and invisible on paper. These derive from `--primary` via
+   color-mix, so the ring re-themes with the light/dark toggle for free.
+
+   `--glow-intensity` is written per-card by BentoGrid on pointer move: 1 when
+   the pointer is within the proximity band, ramping to 0 across the fade
+   band. The ::after is masked with `mask-composite: exclude` so it paints
+   only the 1px border ring, not the card face — a lit hairline rather than a
+   glowing slab, which is what a document format can carry.
+
+   Radius is 1px to match `border-border` elsewhere; MagicBento used 6px,
+   which reads as a neon outline against DS-01's hairlines. */
+.bento-card {
+  --glow-x: 50%;
+  --glow-y: 50%;
+  --glow-intensity: 0;
+  --glow-radius: 18rem;
+}
+
+.bento-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: radial-gradient(
+    var(--glow-radius) circle at var(--glow-x) var(--glow-y),
+    color-mix(
+        in srgb,
+        var(--primary) calc(var(--glow-intensity) * 75%),
+        transparent
+      )
+      0%,
+    color-mix(
+        in srgb,
+        var(--primary) calc(var(--glow-intensity) * 32%),
+        transparent
+      )
+      32%,
+    transparent 62%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Particles are appended imperatively by BentoCard; the halo is cheaper as a
+   pseudo-element than a second gsap-tracked node per particle. */
+.bento-particle::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+  z-index: -1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bento-card::after {
+    display: none;
+  }
+}

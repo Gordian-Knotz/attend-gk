@@ -51,6 +51,13 @@ Migration `0007` moves the rule into a `BEFORE INSERT` trigger on
 every write path at once: the server action, PowerSync, the future Expo
 app, and the biometric webhook bridge when it exists.
 
+> **Not sufficient on its own — found 10 Aug 2026.** The trigger is
+> bypassable by a client sending `source: 'biometric'` or `site_id: null`,
+> because 0001's insert policy constrains only `employee_id`. The geofence
+> is therefore **not yet enforced**, and
+> `NEXT_PUBLIC_POWERSYNC_URL` should stay unset until it is. Full write-up
+> and the fix in [04](04-database-and-rls.md) → "Found 10 Aug 2026".
+
 Details worth knowing:
 
 - `distance_m` is **recomputed** in the trigger, never trusted from the
@@ -90,16 +97,41 @@ invoke in development doesn't open two SQLite connections to one file.
 
 1. **Approve the blocked postinstall.** npm blocked
    `@journeyapps/wa-sqlite`'s `powersync-core:download`, so the PowerSync
-   SQLite core extension is absent — confirmed, no core artifacts in its
-   `dist/`. Needs `npm install-scripts approve @journeyapps/wa-sqlite`.
-   Left undone deliberately: it executes a package script and downloads a
-   binary, which is the owner's call.
+   SQLite core extension is absent. Needs
+   `npm install-scripts approve @journeyapps/wa-sqlite`. Left undone
+   deliberately: it executes a package script and downloads a binary, which
+   is the owner's call.
+
+   **Re-confirmed 10 Aug 2026, precisely this time.** The check to run is
+   *not* "is `dist/` empty" — it isn't, and that's misleading. `dist/` ships
+   16 `.wasm`/`.mjs` artifacts in the npm tarball, including the
+   `mc-wa-sqlite*` multi-cipher builds. What the blocked script fetches is
+   named in `scripts/download-dynamic-core.js`:
+
+   ```js
+   const RELEASE_FILES = ['libpowersync.wasm', 'libpowersync-async.wasm'];
+   const DIST_DIR = path.resolve(__dirname, '../dist');
+   ```
+
+   Neither `libpowersync.wasm` nor `libpowersync-async.wasm` is present.
+   `powersync-version` pins the wanted core at **v0.5.2**. The dynamic
+   builds require these files at runtime, so this fails when the DB opens,
+   not at build time — which is why every build has been green regardless.
+
+   Verify with:
+
+   ```bash
+   ls node_modules/@journeyapps/wa-sqlite/dist/libpowersync*
+   ```
 2. **Provision.** PowerSync Cloud instance; run
    `supabase/powersync-setup.sql` on a direct Postgres connection (not
    PostgREST — the keys in `.env.local` can't do DDL or role creation);
    connect the instance with "Use Supabase Auth"; deploy the sync rules;
    put the instance URL in `.env.local`.
-3. **Run migration 0007.**
+3. **Run migration 0007 — and 0008 with it.** 0007 alone leaves the
+   geofence bypassable (see the note above); the two belong together, since
+   turning sync on is what makes the bypass the normal write path. Order and
+   test cases in [10](10-live-db-bringup.md).
 4. **Rewrite the check-in flow** to read and write local SQLite —
    `checkin-widget.tsx` and `/checkin`, replacing the localStorage queue.
 

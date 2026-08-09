@@ -5,8 +5,19 @@ Ordered roughly by "would bite you soonest".
 ## Not verified
 
 Everything below builds, type-checks and lints clean. **None of it has run
-against a live Supabase instance** — there's no `.env.local` in the repo, so
-no query path was executed end to end.
+against a live Supabase instance** — no query path has been executed end to
+end.
+
+[10](10-live-db-bringup.md) is the ordered plan for closing this, with the
+fixtures and expected values for each check. The list below is the summary.
+
+> **Corrected 10 Aug 2026.** This originally gave the reason as "there's no
+> `.env.local` in the repo". There is one, with the Supabase URL and anon
+> key, dated during the 6 Aug session. So the project it points at may
+> already have schema in it — verify before running migrations
+> ([10](10-live-db-bringup.md) §0.1). What *is* missing is
+> `SUPABASE_SERVICE_ROLE_KEY`, without which the staff invite and the demo
+> seeder can't work.
 
 Before trusting any of it:
 

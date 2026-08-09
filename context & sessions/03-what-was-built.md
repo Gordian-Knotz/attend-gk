@@ -304,7 +304,17 @@ Route sizes for the new pages: `/admin/reports` 9.59 kB (238 kB first load,
 recharts), `/admin/organizations` 124 B (102 kB), `/reset-password` 3.32 kB
 (187 kB), `/` 5.39 kB (157 kB).
 
-**Not verified:** nothing was run against a live Supabase instance. There's
-no `.env.local` in the repo, so every query path, both new migrations, and
-the reset-password email round trip are type-correct and build-clean but
-untested end to end. See [06](06-next-steps.md).
+**Not verified:** nothing was run against a live Supabase instance. Every
+query path, both new migrations, and the reset-password email round trip are
+type-correct and build-clean but untested end to end. See
+[06](06-next-steps.md), and [10](10-live-db-bringup.md) for the plan to
+close it.
+
+> **Corrected 10 Aug 2026.** This section originally read "There's no
+> `.env.local` in the repo, so …". There is one, dated 6 Aug 01:58 — i.e. it
+> existed while this was being written — carrying
+> `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. The
+> conclusion still stands (nothing was run), but the stated reason was
+> wrong, and the project it points at may already hold schema. Check before
+> running migrations. `SUPABASE_SERVICE_ROLE_KEY` is still absent, which is
+> what actually blocks the staff-invite path and `scripts/seed-demo-data.mjs`.

@@ -3,6 +3,13 @@
 Added after the merge, in the same session. Covers how React Bits is wired
 in, what was adapted and why, and where the animation is applied.
 
+> **Partly superseded, 10 Aug 2026.** The hero was rebuilt from `attend-v3`:
+> `Threads` replaced `Aurora`, and the two-column composition became a
+> centred one, which dropped `HeroRotator` and `HeroPreview` from the page.
+> A bento layer was also added to `/admin`. Everything else below still
+> describes the current state. See [09](09-v3-hero-and-bento.md); the
+> affected rows are flagged inline.
+
 ## How React Bits is installed
 
 React Bits is a **copy-in registry**, not a package dependency — the same
@@ -85,11 +92,16 @@ This project installs **`motion`, `gsap` and `ogl`** only. The `three` /
 | `CountUp` | motion | `StatValue` → all stat tiles |
 | `AnimatedContent` | gsap | `Reveal` → everywhere |
 | `BlurText` | motion | `BlurLabel` → mono eyebrows |
-| `Aurora` | ogl | `HeroBackdrop` |
-| `RotatingText` | motion | `HeroRotator` → the hero's "Built for ___" |
-| `GlareHover` | — | `FeatureCard`, and the hero preview card |
+| `Aurora` | ogl | `HeroBackdrop` — **orphaned 10 Aug**, replaced by `Threads` |
+| `Threads` | ogl | `HeroThreads` → the hero field. **Added 10 Aug**, see [09](09-v3-hero-and-bento.md) |
+| `RotatingText` | motion | `HeroRotator` — **orphaned 10 Aug**, the centred hero dropped it |
+| `GlareHover` | — | `FeatureCard`, and the hero preview card (`HeroPreview` itself orphaned 10 Aug) |
 | `ShapeGrid` | — | `CtaTexture` → hexagon field behind the CTA band |
 | `SpotlightCard` | — | superseded, see below |
+
+Orphaned files are left on disk with no importers, so the previous hero can
+be restored by swapping imports back. `MagicBento` was **not** vendored — the
+bento in `/admin` is a rewrite, and 09 explains why.
 
 `LogoLoop` was pulled and then removed — a marquee of five text names reads
 sparse, and it was the only file producing lint errors.
@@ -170,7 +182,8 @@ Chosen intensity: **expressive**. Scope: **everywhere**.
 
 | Surface | Treatment |
 |---|---|
-| Hero | Aurora backdrop, `BlurLabel` eyebrow, `RevealHeading` h1, `HeroRotator`, glare on the preview card |
+| Hero | ~~Aurora backdrop, `BlurLabel` eyebrow, `RevealHeading` h1, `HeroRotator`, glare on the preview card~~ → **as of 10 Aug: Threads backdrop, `BlurLabel` eyebrow, `RevealHeading` h1, centred; no rotator or preview** ([09](09-v3-hero-and-bento.md)) |
+| `/admin` overview | Bento grid: proximity border glow on all cells, particles + magnetism + ripple on the four KPI cells. **Added 10 Aug** |
 | Trust bar | `Reveal` |
 | Feature clusters | `RevealHeading` + staggered `Reveal` + `FeatureCard` glare |
 | Capture cards | `SpotlightCard` + staggered `Reveal` |
@@ -253,6 +266,12 @@ next build    ✓  18 routes,  /  = 270 kB
 Driven in a browser at 1366×1000 in both themes: backdrop full-bleed with
 no horizontal overflow (`scrollWidth === innerWidth`), card rules aligned
 across rows, CTA band distinct, zero console errors.
+
+> **Correction, 10 Aug 2026.** Compare `scrollWidth` against
+> `documentElement.clientWidth`, not `window.innerWidth`. `innerWidth`
+> includes the vertical scrollbar (15px here), so the equality above reads as
+> a failure on any page tall enough to scroll even when nothing overflows.
+> Use `scrollWidth <= clientWidth`.
 
 Still unreviewed: mobile widths, and every route behind auth.
 

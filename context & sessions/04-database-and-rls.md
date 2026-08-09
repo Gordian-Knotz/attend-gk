@@ -186,6 +186,59 @@ The write policy mirrors the manager split introduced in 0004:
 
 Read is org-wide for everyone in the org, plus `super_admin` across all.
 
+## Found 10 Aug 2026 — 0007's geofence is bypassable by the client
+
+**This one matters, because 0007 exists specifically to close a hole.**
+[08](08-powersync-offline.md) explains the reasoning: PowerSync writes go
+local SQLite → `uploadData()` → PostgREST, never touching the
+`recordAttendance` server action, so the geofence had to move into a
+`BEFORE INSERT` trigger to cover every write path.
+
+The trigger is fine. The policy underneath it isn't. From 0001, unchanged:
+
+```sql
+create policy "attendance: self insert" on attendance_events for insert
+  with check (employee_id = auth.uid());
+```
+
+`source`, `site_id` and `org_id` are all client-supplied and unconstrained —
+and two of them are exactly what the trigger branches on:
+
+| Client sends | Trigger behaviour | Result |
+|---|---|---|
+| `source = 'biometric'` or `'manual'` | exempt branch, returns immediately | geofence skipped entirely |
+| `site_id = null` | "nothing to measure against", returns | geofence skipped entirely |
+| another org's `org_id` | never examined | punch lands in that org's reports |
+
+So a staff user who can reach PostgREST — which is every signed-in user —
+can write an out-of-fence punch by setting one field. The exemptions are
+correct in intent (a fixed terminal has no GPS; an admin correction has no
+GPS) but they're being decided by the least trustworthy party.
+
+**This is the same bug as v1's, mirrored.** Above, v1's failure is *"the
+check is on `org_id` only. Nothing constrains `staff_id`."* Here the check is
+on `employee_id` only, and nothing constrains the three fields the
+enforcement path depends on.
+
+Fix, sketched as `0008_attendance_insert_integrity.sql` in
+[10](10-live-db-bringup.md) §1:
+
+1. Constrain the staff insert policy so `org_id` and `site_id` must match
+   the caller's own `current_employee()` row, and `source` must be in
+   `('mobile', 'kiosk_qr')`.
+2. Leave `('manual', 'biometric')` to the admin/manager policies and the
+   service role, which is where the webhook bridge will live.
+3. In the trigger, make `site_id is null` a rejection for GPS-bearing
+   sources rather than a pass — an assigned employee always has a site.
+
+Then the exemptions become unreachable from a staff client and 0007 does
+what it was written to do.
+
+**Until that's done, treat the geofence as unenforced and don't set
+`NEXT_PUBLIC_POWERSYNC_URL`.** PowerSync is inert without it, so the exposure
+today is limited to a hand-crafted PostgREST call; turning sync on is what
+makes it the normal write path.
+
 ## Migration order
 
 ```
@@ -193,8 +246,10 @@ Read is org-wide for everyone in the org, plus `super_admin` across all.
 0002_self_serve_signup.sql      create_organization_for_self RPC
 0003_fix_super_admin_scope.sql  RLS fixes
 0004_manager_shift_access.sql   manager shift writes
-0005_super_admin_site_read.sql  RLS fix  ← this session
-0006_notifications.sql          notices  ← this session
+0005_super_admin_site_read.sql  RLS fix        ← 6 Aug session
+0006_notifications.sql          notices        ← 6 Aug session
+0007_geofence_enforcement.sql   geofence trigger  ← 6 Aug session, unrun
+0008_…_insert_integrity.sql     not written yet — see above
 seed.sql                        demo org, site, notices  ← run last
 ```
 

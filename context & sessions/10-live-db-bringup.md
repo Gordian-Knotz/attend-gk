@@ -108,13 +108,32 @@ client, and 0007 does what it was written to do.
 In order, in the Supabase SQL editor (none of these need a direct
 connection — no `CREATE ROLE`, no DDL PostgREST can't reach):
 
+> **Updated 10 Aug 2026.** 0001–0007 turned out to be **already applied** to
+> the project in `.env.local` — see [12](12-platform-console-and-limits.md)
+> for the probe. The list below is now the *remaining* work, and 0008 is a
+> committed file rather than a sketch. All four are safe to run twice.
+
 ```
-0005_super_admin_site_read.sql
-0006_notifications.sql
-0007_geofence_enforcement.sql
-(0008 from Phase 1, if you take it)
-seed.sql                        ← must be last; it inserts notifications
+0008_attendance_insert_integrity.sql   RLS + geofence trigger + idempotency key
+0009_contact_requests.sql              landing-page enquiries
+0010_platform_administration.sql       billing constraint, suspension, column guard
+0011_employee_role_integrity.sql       stops org_admin self-promotion
+seed.sql                               ← must be last; it inserts notifications
 ```
+
+Two of these are live holes, not hypotheticals:
+
+- **0007 is applied and 0008 is not**, so the geofence is bypassable today
+  by sending `source: 'biometric'`. Keep `NEXT_PUBLIC_POWERSYNC_URL` unset
+  until 0008 is in.
+- **Any `org_admin` can PATCH their own `employees` row to
+  `role: 'super_admin'`.** 0011 closes it. Apply before anyone else holds
+  an org_admin account.
+
+0008 and 0010 rewrite existing rows before adding constraints — read them
+first. All four end with `notify pgrst, 'reload schema'`, because PostgREST
+404s new columns and functions until its cache refreshes, which looks
+exactly like the migration not having run.
 
 `supabase/powersync-setup.sql` is **not** part of this phase. It creates a
 replication role and a publication, needs a direct Postgres connection, and
@@ -275,6 +294,11 @@ right org and site.
 Bring-up is done when:
 
 - [ ] Phase 0.1 probe reports all four flags true
+- [ ] 0008–0011 applied; `attendance_events.client_event_id`,
+      `employee_site_id()`, `contact_requests` and
+      `organizations.suspended_at` all resolve through PostgREST
+- [ ] An `org_admin` PATCHing their own role to `super_admin` is rejected
+      (0011) — the one test that proves the console can't be seized
 - [ ] `seed.sql` ran after 0006; two notices visible on `/admin`
 - [ ] 3.1 — a 01:30 punch buckets to today, not yesterday
 - [ ] 3.2 — all four pairing cases match the table; CSV agrees with the screen

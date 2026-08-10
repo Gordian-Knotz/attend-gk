@@ -310,11 +310,19 @@ type-correct and build-clean but untested end to end. See
 [06](06-next-steps.md), and [10](10-live-db-bringup.md) for the plan to
 close it.
 
-> **Corrected 10 Aug 2026.** This section originally read "There's no
-> `.env.local` in the repo, so …". There is one, dated 6 Aug 01:58 — i.e. it
-> existed while this was being written — carrying
-> `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. The
-> conclusion still stands (nothing was run), but the stated reason was
-> wrong, and the project it points at may already hold schema. Check before
-> running migrations. `SUPABASE_SERVICE_ROLE_KEY` is still absent, which is
-> what actually blocks the staff-invite path and `scripts/seed-demo-data.mjs`.
+> **Corrected 10 Aug 2026, twice.**
+>
+> *First:* this originally read "There's no `.env.local` in the repo, so …".
+> There is one, dated 6 Aug 01:58 — it existed while this was being written
+> — carrying `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+>
+> *Then, later the same day:* the conclusion above is **also wrong**. The
+> project in `.env.local` was probed through PostgREST and
+> **migrations 0001–0007 are applied.** Migrations 0005 and 0006 — the two
+> this document introduced — have run. The untested parts are the query
+> paths and the reset-password round trip, not the schema.
+> See [12](12-platform-console-and-limits.md) for the probe and the full
+> table.
+>
+> Still true: `SUPABASE_SERVICE_ROLE_KEY` is absent, which blocks the
+> staff-invite path and `scripts/seed-demo-data.mjs`.

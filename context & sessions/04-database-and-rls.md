@@ -260,14 +260,17 @@ makes it the normal write path.
 ## Migration order
 
 ```
-0001_init_schema.sql            schema + RLS
-0002_self_serve_signup.sql      create_organization_for_self RPC
-0003_fix_super_admin_scope.sql  RLS fixes
-0004_manager_shift_access.sql   manager shift writes
-0005_super_admin_site_read.sql  RLS fix        ← 6 Aug session
-0006_notifications.sql          notices        ← 6 Aug session
-0007_geofence_enforcement.sql   geofence trigger  ← 6 Aug session, unrun
-0008_attendance_insert_integrity.sql  RLS + trigger hardening ← 10 Aug, unrun
+0001_init_schema.sql            schema + RLS                      APPLIED
+0002_self_serve_signup.sql      create_organization_for_self RPC  APPLIED
+0003_fix_super_admin_scope.sql  RLS fixes                         APPLIED
+0004_manager_shift_access.sql   manager shift writes              APPLIED
+0005_super_admin_site_read.sql  RLS fix                           APPLIED
+0006_notifications.sql          notices                           APPLIED
+0007_geofence_enforcement.sql   geofence trigger                  APPLIED
+0008_attendance_insert_integrity.sql  RLS + trigger hardening     pending
+0009_contact_requests.sql       landing-page enquiries            pending
+0010_platform_administration.sql  billing, suspension, guard      pending
+0011_employee_role_integrity.sql  stops org_admin self-promotion  pending
 seed.sql                        demo org, site, notices  ← run last
 ```
 
@@ -276,7 +279,17 @@ header comment previously said "run after 0001" — corrected.
 
 ## Untested
 
-Neither new migration has been run against a live Postgres. They're
-syntactically consistent with the four that precede them and follow the same
-policy idiom, but **they have not been executed**. Run them on a scratch
-project before production. See [06](06-next-steps.md).
+> **Corrected 10 Aug 2026.** This said "neither new migration has been run
+> against a live Postgres". Probing the project in `.env.local` showed
+> **0001–0007 are all applied**, including 0005 and 0006. The table above
+> reflects the real state. Outstanding: 0008–0011. See
+> [12](12-platform-console-and-limits.md).
+
+0008–0011 are syntactically consistent with those that precede them and
+follow the same policy idiom, but **they have not been executed**. All four
+are idempotent, so a scratch-project rehearsal followed by a production run
+costs nothing extra.
+
+**Two live holes until 0008 and 0011 land:** the geofence is bypassable via
+`source: 'biometric'`, and any `org_admin` can PATCH themselves to
+`super_admin`.

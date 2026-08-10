@@ -8,6 +8,7 @@ import { LeaveRequestDialog } from "./leave-request-dialog";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Reveal } from "@/components/motion/reveal";
+import { OrgSuspended } from "@/components/org-suspended";
 import { DISPLAY_LOCALE, ORG_TIME_ZONE, formatTime } from "@/lib/timezone";
 
 const LEAVE_STATUS_VARIANT = {
@@ -38,7 +39,9 @@ export default async function DashboardPage() {
 
   const { data: employee } = await supabase
     .from("employees")
-    .select("id, full_name, site_id, sites(name, geofence_lat, geofence_lng, geofence_radius_m)")
+    .select(
+      "id, full_name, site_id, organizations(name, suspended_at, suspended_reason), sites(name, geofence_lat, geofence_lng, geofence_radius_m)"
+    )
     .eq("id", user.id)
     .maybeSingle();
 
@@ -62,6 +65,20 @@ export default async function DashboardPage() {
   }
 
   const site = Array.isArray(employee.sites) ? employee.sites[0] : employee.sites;
+  const org = Array.isArray(employee.organizations)
+    ? employee.organizations[0]
+    : employee.organizations;
+
+  // Same notice staff would get on /admin. Clocking in against a suspended
+  // account would produce attendance nobody is going to be paid for.
+  if (org?.suspended_at) {
+    return (
+      <OrgSuspended
+        orgName={org.name ?? "Your organization"}
+        reason={org.suspended_reason ?? null}
+      />
+    );
+  }
 
   const now = new Date();
   const weekAhead = new Date(now);

@@ -78,8 +78,9 @@ Engineering delivery: Gordian Knotz Technovation.
 ## Setting up Supabase
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Copy `.env.example` to `.env.local` and fill in the three values from
-   your project's API settings (you've already done this).
+2. Copy `.env.example` to `.env.local` and fill it in from your project's
+   API settings. `SUPABASE_SERVICE_ROLE_KEY` is required for the staff
+   invite and the demo seeder, and bypasses RLS — server-side only.
 3. Run the migrations, in order — either `supabase db push` (CLI) or paste
    each file into the SQL editor:
    - `supabase/migrations/0001_init_schema.sql` — schema + RLS
@@ -111,6 +112,14 @@ Engineering delivery: Gordian Knotz Technovation.
      stops plain staff reading device webhook secrets, and adds the
      idempotency key the offline queue needs. Security-relevant: do not
      run 0007 without it.
+   - `supabase/migrations/0009_contact_requests.sql` — where the landing
+     page's pilot enquiries land. The only anon-writable table in the
+     schema; read the header before copying its policy anywhere.
+   - `supabase/migrations/0010_platform_administration.sql` — constrains
+     `billing_status` to a closed set, adds organization suspension, and
+     stops an `org_admin` changing their own plan, billing or suspension.
+     Rewrites existing `billing_status` values before adding the
+     constraint — read it before running it.
 4. Run `supabase/seed.sql` — creates one demo org ("Alpha Pride Security"),
    one demo site ("Two Rivers Mall", Nairobi CBD coordinates), and two demo
    notices. Run it after *all* the migrations, not just 0001 — it inserts

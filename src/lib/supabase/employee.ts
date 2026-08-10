@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { perRequest } from "@/lib/cache";
 
 export type EmployeeContext = {
   id: string;
@@ -8,6 +9,9 @@ export type EmployeeContext = {
   orgName: string;
   siteId: string | null;
   siteName: string | null;
+  /** Set by a super_admin from /super. Non-null means locked out. */
+  orgSuspendedAt: string | null;
+  orgSuspendedReason: string | null;
 };
 
 /** Returns null if the signed-in user has no employees row yet (fresh
@@ -16,8 +20,14 @@ export type EmployeeContext = {
  *  Throws — rather than returning null — when the lookup itself fails.
  *  Callers treat null as "needs onboarding" and redirect there, so
  *  swallowing a transient database error used to walk an established admin
- *  into the create-an-organization flow. */
-export async function getEmployeeContext(): Promise<EmployeeContext | null> {
+ *  into the create-an-organization flow.
+ *
+ *  Wrapped in `perRequest` (React `cache`): the admin layout, the page and
+ *  the sidebar each call this, so one navigation used to make three
+ *  identical `auth.getUser()` + employees round trips. The cache is
+ *  per-render and discarded with the response, so it can never serve one
+ *  user's context to another — which a shared cache absolutely would. */
+export const getEmployeeContext = perRequest(async function getEmployeeContext(): Promise<EmployeeContext | null> {
   const supabase = await createClient();
 
   const {
@@ -29,7 +39,7 @@ export async function getEmployeeContext(): Promise<EmployeeContext | null> {
   const { data, error } = await supabase
     .from("employees")
     .select(
-      "id, full_name, role, org_id, site_id, organizations(name), sites(name)"
+      "id, full_name, role, org_id, site_id, organizations(name, suspended_at, suspended_reason), sites(name)"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -53,5 +63,7 @@ export async function getEmployeeContext(): Promise<EmployeeContext | null> {
     orgName: org?.name ?? "Your organization",
     siteId: data.site_id,
     siteName: site?.name ?? null,
+    orgSuspendedAt: org?.suspended_at ?? null,
+    orgSuspendedReason: org?.suspended_reason ?? null,
   };
-}
+});

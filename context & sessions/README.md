@@ -8,7 +8,7 @@ files tell you why it looks the way it does.
 Sessions: **6 August 2026** (docs 01–08) and **10 August 2026** — first the
 v3 port (docs 09–10, plus corrections marked inline in 03, 04, 06, 07 and
 08), then a security audit and hardening pass (doc 11, plus corrections in
-01, 02, 06 and 07).
+01, 02, 06 and 07), then the platform console and rate limiting (doc 12).
 
 | File | What's in it |
 |---|---|
@@ -23,11 +23,12 @@ v3 port (docs 09–10, plus corrections marked inline in 03, 04, 06, 07 and
 | [09-v3-hero-and-bento.md](09-v3-hero-and-bento.md) | What attend-v3 is, the centred Threads hero, and the bento rewrite on `/admin` — with the browser checks still owed |
 | [10-live-db-bringup.md](10-live-db-bringup.md) | The ordered plan for running 0005–0008 against a real Postgres, with fixtures and expected values for every check |
 | [11-security-hardening.md](11-security-hardening.md) | The CodeRabbit audit: how to run it on a whole codebase, the five criticals, the self-approved-leave hole it missed, and migration 0008 |
+| [12-platform-console-and-limits.md](12-platform-console-and-limits.md) | `/super`, rate limiting (and why auth had to move server-side first), cookie/JWT policy, and the caching rule |
 | [coderabbit-findings-10aug.md](coderabbit-findings-10aug.md) | Raw output — all 90 findings by severity |
 
-## Where we left off — 10 Aug 2026 (security hardening)
+## Where we left off — 10 Aug 2026 (hardening + platform console)
 
-`tsc --noEmit`, `npm run lint` and `npm run build` all green (18 routes,
+`tsc --noEmit`, `npm run lint` and `npm run build` all green (**19 routes**,
 exit 0). On branch **`harden-security-audit`**, cut from `main` at
 `9fa2a6f`. Not merged, not pushed.
 
@@ -35,11 +36,30 @@ exit 0). On branch **`harden-security-audit`**, cut from `main` at
 > hero work. `main` *is* pushed — `github.com/Gordian-Knotz/attend-gk`,
 > 0 ahead / 0 behind. Corrected.
 
-### What changed this session
+### What changed — part two: platform console ([12](12-platform-console-and-limits.md))
+
+- **`/super`** — PAC's own operator console. Cross-org metrics (paying, on
+  trial, genuinely active) plus writes for plan tier, billing status and
+  suspension. Its own route segment, not part of `/admin`, so the
+  one-org-at-a-time assumption every `/admin` page makes can't leak.
+  `/admin/organizations` now redirects there.
+- **Rate limiting** on auth, attendance and the contact form. In-memory,
+  which is correct on one Railway container and **wrong past one replica** —
+  swap `RateLimitStore` for Redis when you scale.
+- **Auth moved to server actions.** It ran browser-side, so no limiter could
+  see it. Side effects: no more account-existence oracle, and `/login`
+  dropped 231 kB → 163 kB.
+- **Cookie and JWT policy** in one place, PKCE everywhere. The dashboard
+  settings that aren't code are tabulated in doc 12.
+- **Caching**, with the rule that most of this data is RLS-scoped and must
+  never enter a shared cache.
+- **Migrations 0009** (contact_requests) **and 0010** (billing constraint,
+  suspension, per-column update guard). Both unexecuted.
+
+### What changed — part one: the audit ([11](11-security-hardening.md))
 
 A full-codebase CodeRabbit review, then **88 of its 90 findings applied**,
-plus one hole it missed. Full write-up in
-[11](11-security-hardening.md); raw findings in
+plus one hole it missed. Raw findings in
 [coderabbit-findings-10aug.md](coderabbit-findings-10aug.md).
 
 The five things most worth knowing:
@@ -62,11 +82,12 @@ The five things most worth knowing:
 
 ### Blocked on you, in order
 
-1. **Run `0008_attendance_insert_integrity.sql`** (with 0007 — 0007 alone
-   does not enforce the geofence). Until then **leave
-   `NEXT_PUBLIC_POWERSYNC_URL` unset**. The RLS changes are the
-   highest-risk unexecuted thing in the repo: a policy that is too tight
-   breaks the app at runtime, not at build.
+1. **Run migrations 0008, 0009 and 0010** (0008 with 0007 — 0007 alone does
+   not enforce the geofence). Until then **leave
+   `NEXT_PUBLIC_POWERSYNC_URL` unset**. These are the highest-risk
+   unexecuted thing in the repo: an RLS policy that is too tight breaks the
+   app at runtime, not at build. Read 0010 before running it — it rewrites
+   existing `billing_status` values before adding its constraint.
 2. **Add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`.** Referenced in code,
    absent from the file. Blocks the `/admin/staff` invite and
    `scripts/seed-demo-data.mjs`.
@@ -74,9 +95,12 @@ The five things most worth knowing:
    seed against a real project, then the three computations most likely to
    be subtly wrong (day bucketing, check-in pairing, absent arithmetic).
    Add the 0008 cases from [11](11-security-hardening.md) to Phase 4.
-4. **Browser-check this session's changes.** Nothing here has been looked
-   at in a browser. Both previous sessions shipped green builds that a
-   browser pass then found real defects in.
+4. **Browser-check this session's changes.** Nothing from either part has
+   been looked at in a browser — including `/super`, which has never been
+   rendered at all. Both previous sessions shipped green builds that a
+   browser pass then found real defects in. Also worth exercising: that the
+   auth rate limit actually trips, that a ~20-punch offline drain doesn't,
+   and a suspend/restore round trip on a scratch org.
 5. `npm install-scripts approve @journeyapps/wa-sqlite` — still blocked, and
    re-confirmed precisely on 10 Aug: `libpowersync.wasm` and
    `libpowersync-async.wasm` are genuinely absent from its `dist/`. It

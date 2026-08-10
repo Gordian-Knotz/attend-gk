@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
+import { requestPasswordReset, signIn, signUp } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,27 +88,14 @@ function LoginForm() {
     setMode(nextMode);
   }
 
-  async function routeSignedInUser(supabase: ReturnType<typeof createClient>) {
+  /** Sign-in and sign-up both land here once a session exists. */
+  function routeTo(role: "onboarding" | "staff" | "admin") {
     const destination = safeNext(next);
     if (destination) {
       router.push(destination);
-      router.refresh();
-      return;
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const { data: employee } = await supabase
-      .from("employees")
-      .select("role")
-      .eq("id", user?.id ?? "")
-      .maybeSingle();
-
-    if (!employee) {
+    } else if (role === "onboarding") {
       router.push("/onboarding");
-    } else if (employee.role === "staff") {
+    } else if (role === "staff") {
       router.push("/dashboard");
     } else {
       router.push("/admin");
@@ -122,54 +109,45 @@ function LoginForm() {
     setInfo(null);
     setLoading(true);
 
-    const supabase = createClient();
-
-    if (mode === "forgot") {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      setLoading(false);
-      if (error) {
-        setError(error.message);
+    try {
+      // These go through server actions rather than the browser Supabase
+      // client so our own rate limits can see them — see login/actions.ts.
+      if (mode === "forgot") {
+        const result = await requestPasswordReset(email, window.location.origin);
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        setInfo(
+          "If that address has an account, a reset link is on its way. It expires in an hour — request another if it lapses."
+        );
         return;
       }
-      setInfo(
-        "Check your inbox for a reset link. It expires in an hour — request another if it lapses."
-      );
-      return;
-    }
 
-    if (mode === "sign-in") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      setLoading(false);
-      if (error) {
-        setError(error.message);
+      const result =
+        mode === "sign-in"
+          ? await signIn(email, password)
+          : await signUp(email, password);
+
+      if (result.error) {
+        setError(result.error);
         return;
       }
-      await routeSignedInUser(supabase);
-      return;
+
+      if (result.needsConfirmation) {
+        setInfo(
+          "Check your inbox to confirm your email, then sign in — we'll walk you through setting up your organization next."
+        );
+        setMode("sign-in");
+        return;
+      }
+
+      if (result.role) routeTo(result.role);
+    } catch {
+      setError("Something went wrong. Check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
-
-    // sign-up
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    if (!data.session) {
-      setInfo(
-        "Check your inbox to confirm your email, then sign in — we'll walk you through setting up your organization next."
-      );
-      setMode("sign-in");
-      return;
-    }
-
-    // email confirmation is off for this project — session exists already
-    router.push("/onboarding");
-    router.refresh();
   }
 
   const copy = COPY[mode];

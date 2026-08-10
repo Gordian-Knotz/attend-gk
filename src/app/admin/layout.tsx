@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminTopbar } from "@/components/admin/topbar";
 import { AdminIdentityProvider } from "@/components/admin/identity-context";
+import { OrgSuspended } from "@/components/org-suspended";
 
 export const metadata: Metadata = {
   title: "AttendPAC — Admin",
@@ -25,6 +26,20 @@ export default async function AdminLayout({
   // Section 06: staff can't access the admin dashboard.
   if (employee.role === "staff") {
     redirect("/dashboard");
+  }
+
+  // A suspended tenant sees an explanation instead of the product. Checked
+  // after the role redirect so a suspended org's staff land on /dashboard
+  // and get the same notice there, rather than two different messages.
+  // super_admin is exempt — that's us, and locking ourselves out of the
+  // console that lifts suspensions would be an unfortunate way to find out.
+  if (employee.orgSuspendedAt && employee.role !== "super_admin") {
+    return (
+      <OrgSuspended
+        orgName={employee.orgName}
+        reason={employee.orgSuspendedReason}
+      />
+    );
   }
 
   const supabase = await createClient();

@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { authCookieOptions } from "./cookies";
+
 const PROTECTED_PATHS = ["/admin", "/dashboard", "/onboarding", "/checkin", "/api"];
 
 /**
@@ -38,6 +40,12 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
+      auth: {
+        flowType: "pkce",
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      },
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -47,8 +55,11 @@ export async function updateSession(request: NextRequest) {
             request.cookies.set(name, value)
           );
           supabaseResponse = NextResponse.next({ request });
+          // Middleware is where the refreshed session cookie is actually
+          // written on most requests, so the policy has to be applied here
+          // too — not just in the server client.
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, authCookieOptions(options))
           );
         },
       },

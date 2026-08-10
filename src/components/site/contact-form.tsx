@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Check, Loader2 } from "lucide-react";
 
+import { submitContactRequest } from "@/app/contact-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,43 +25,48 @@ export function ContactForm() {
     "idle"
   );
 
+  const [error, setError] = React.useState<string | null>(null);
+
   /**
-   * Hands the request to the visitor's mail client.
+   * Writes to `contact_requests` (migration 0009).
    *
    * This used to `setTimeout(600)` and then render "Request received —
-   * we'll be in touch within one business day". Nothing was sent anywhere.
-   * Every pilot enquiry went into the void while the sender believed it had
-   * arrived, which is worse than having no form at all.
-   *
-   * mailto is the honest option that needs no backend: the message really
-   * does leave, and the visitor can see that it did. Replace this with a
-   * route handler once there is somewhere to put the leads.
+   * we'll be in touch within one business day" while sending nothing
+   * anywhere. Briefly it was a `mailto:` stopgap. It now actually records
+   * the enquiry, rate-limited per IP because it is the one write path with
+   * no session behind it.
    */
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("submitting");
+    setError(null);
 
     const form = new FormData(e.currentTarget);
-    const value = (key: string) => String(form.get(key) ?? "").trim();
+    const value = (key: string) => String(form.get(key) ?? "");
 
-    const body = [
-      `Name: ${value("fullName")}`,
-      `Work email: ${value("workEmail")}`,
-      `Company: ${value("company")}`,
-      `Phone: ${value("phone") || "—"}`,
-      `Team size: ${value("teamSize") || "—"}`,
-      "",
-      "What they're trying to solve:",
-      value("message") || "—",
-    ].join("\n");
+    try {
+      const result = await submitContactRequest({
+        fullName: value("fullName"),
+        workEmail: value("workEmail"),
+        company: value("company"),
+        phone: value("phone"),
+        teamSize: value("teamSize"),
+        message: value("message"),
+      });
 
-    const href =
-      `mailto:${CONTACT_ADDRESS}` +
-      `?subject=${encodeURIComponent(`Pilot request — ${value("company")}`)}` +
-      `&body=${encodeURIComponent(body)}`;
+      if (result.error) {
+        setError(result.error);
+        setStatus("idle");
+        return;
+      }
 
-    window.location.href = href;
-    setStatus("sent");
+      setStatus("sent");
+    } catch {
+      setError(
+        `Something went wrong. Email ${CONTACT_ADDRESS} directly and we'll pick it up.`
+      );
+      setStatus("idle");
+    }
   }
 
   if (status === "sent") {
@@ -69,10 +75,10 @@ export function ContactForm() {
         <span className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Check className="size-5" />
         </span>
-        <h3 className="font-serif text-2xl">Your email app should be open.</h3>
+        <h3 className="font-serif text-2xl">Request received.</h3>
         <p className="max-w-sm text-muted-foreground">
-          Send the draft and we&apos;ll be in touch within one business day. If
-          nothing opened, email us directly at{" "}
+          Thanks — we&apos;ll be in touch within one business day. If it&apos;s
+          urgent, email us at{" "}
           <a className="text-primary underline" href={`mailto:${CONTACT_ADDRESS}`}>
             {CONTACT_ADDRESS}
           </a>
@@ -138,8 +144,14 @@ export function ContactForm() {
         />
       </div>
 
-      <div className="sm:col-span-2">
-        <Button type="submit" size="lg" disabled={status === "submitting"}>
+      <div className="flex flex-col gap-3 sm:col-span-2">
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button
+          type="submit"
+          size="lg"
+          className="self-start"
+          disabled={status === "submitting"}
+        >
           {status === "submitting" && <Loader2 className="animate-spin" />}
           Send request
         </Button>

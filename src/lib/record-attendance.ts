@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { haversineMeters } from "@/lib/geo";
+import { attendanceLimiter, retryAfterMessage } from "@/lib/rate-limit";
 
 /**
  * The single server-side punch path.
@@ -69,6 +70,16 @@ export async function recordAttendanceFor(
 
   if (!user) {
     return { error: "Not signed in." };
+  }
+
+  // Keyed on the user, not the IP: a whole site's staff can share one
+  // connection, and a per-IP cap would throttle a shift change. Generous
+  // enough for an offline queue draining a backlog.
+  const punchQuota = await attendanceLimiter.check(user.id);
+  if (!punchQuota.ok) {
+    return {
+      error: `Too many check-ins in a short time. ${retryAfterMessage(punchQuota.retryAfterMs)}`,
+    };
   }
 
   if (!EVENT_TYPES.includes(input.eventType)) {

@@ -28,8 +28,11 @@ const NAV = [
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ] as const;
 
+// Points out of /admin on purpose. Everything else in this sidebar is
+// scoped to one organization; the platform console is not, and it has its
+// own layout so the two can't be confused. See src/app/super/layout.tsx.
 const PLATFORM_NAV = [
-  { label: "Organizations", href: "/admin/organizations", icon: Globe },
+  { label: "All organizations", href: "/super", icon: Globe },
 ] as const;
 
 /**

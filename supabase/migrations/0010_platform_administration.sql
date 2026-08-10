@@ -97,3 +97,6 @@ drop trigger if exists organizations_guard_columns on organizations;
 create trigger organizations_guard_columns
   before update on organizations
   for each row execute function public.guard_organization_columns();
+
+-- PostgREST caches the schema and does not notice DDL on its own.
+notify pgrst, 'reload schema';

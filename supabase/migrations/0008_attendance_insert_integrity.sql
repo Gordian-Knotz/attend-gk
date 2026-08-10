@@ -27,9 +27,24 @@
 --
 -- The review found the same shape on three more policies, all fixed here.
 --
--- Written to be re-runnable: every policy is dropped with `if exists`
--- before being recreated, so this applies cleanly whether or not
--- 0001–0007 have already run against the target database.
+-- ── SAFE TO RUN TWICE ───────────────────────────────────────────────────
+--
+-- Every statement in this file is idempotent, and that is a requirement,
+-- not a nicety — an earlier sketch of this migration was applied by hand
+-- before the file existed, so the first "real" run is already a re-run.
+--
+--   policies      drop … if exists, then create
+--   functions     create or replace
+--   trigger       drop … if exists, then create
+--   column        add column if not exists
+--   index         create … if not exists
+--   constraints   drop … if exists, then add — with the existing rows
+--                 normalised first, because `add constraint` validates
+--                 what is already in the table and would otherwise abort
+--                 the whole migration on legacy data
+--
+-- Running it a second time is a no-op. Running it against a database that
+-- has only 0001–0007 brings it fully up to date.
 
 -- ── Helper: an employee's site, without tripping RLS recursion ───────────
 --
@@ -85,6 +100,19 @@ create policy "attendance: self insert" on attendance_events for insert
 
 alter table attendance_events add column if not exists client_event_id uuid;
 
+-- If a previous partial run left duplicates behind, the unique index would
+-- fail and take the rest of the migration with it. Keep the earliest row's
+-- id and null the rest: they are duplicates by definition, so the key is
+-- the thing to discard, not the punch.
+update attendance_events e
+set client_event_id = null
+where client_event_id is not null
+  and exists (
+    select 1 from attendance_events earlier
+    where earlier.client_event_id = e.client_event_id
+      and (earlier.created_at, earlier.id) < (e.created_at, e.id)
+  );
+
 create unique index if not exists attendance_events_client_event_id_key
   on attendance_events (client_event_id)
   where client_event_id is not null;
@@ -108,6 +136,30 @@ create policy "leave: self insert" on leave_requests for insert
 
 -- Defence in depth: even a service-role or admin write can't invent a
 -- status or a leave type the app doesn't understand.
+--
+-- Existing rows are normalised BEFORE the constraint is added. `status` and
+-- `leave_type` were both unconstrained free text until now, so a live
+-- database can legitimately contain values these lists don't cover — and
+-- `add constraint` validates existing rows, so it would abort the whole
+-- migration. Anything unrecognised is parked on a safe default rather than
+-- deleted; a leave request is somebody's time off, not scratch data.
+
+update leave_requests
+set status = lower(trim(status))
+where status is distinct from lower(trim(status));
+
+update leave_requests
+set status = 'pending'
+where status not in ('pending', 'approved', 'rejected', 'cancelled');
+
+update leave_requests
+set leave_type = lower(trim(leave_type))
+where leave_type is distinct from lower(trim(leave_type));
+
+update leave_requests
+set leave_type = 'annual'
+where leave_type not in ('annual', 'sick', 'compassionate', 'unpaid');
+
 alter table leave_requests drop constraint if exists leave_requests_status_check;
 alter table leave_requests add constraint leave_requests_status_check
   check (status in ('pending', 'approved', 'rejected', 'cancelled'));
@@ -261,3 +313,12 @@ drop trigger if exists attendance_geofence on attendance_events;
 create trigger attendance_geofence
   before insert on attendance_events
   for each row execute function public.enforce_attendance_geofence();
+
+-- ── Tell PostgREST about the new column and function ────────────────────
+--
+-- PostgREST serves from a cached schema and does not notice DDL on its own.
+-- Without this, `client_event_id` and `employee_site_id()` exist in the
+-- database but return 404 through the API until the cache happens to
+-- refresh — which looks exactly like the migration not having run, and
+-- wasted time on 10 Aug for precisely that reason.
+notify pgrst, 'reload schema';

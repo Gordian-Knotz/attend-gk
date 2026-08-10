@@ -274,21 +274,154 @@ of 0008–0010 are unexecuted.**
 ```
 tsc --noEmit  ✓ exit 0
 npm run lint  ✓ exit 0, no warnings
-npm run build ✓ 19 routes, exit 0
+npm run build ✓ 19 routes + ƒ Middleware 92.9 kB, exit 0
+Playwright    ✓ 1366×1000, 390×844, 320×844, both themes
 ```
 
 `/super` 12.2 kB (274 kB). `/login` 4.51 kB (163 kB), down from 231 kB.
 
-**Not verified:**
+---
 
-- **Nothing has run against a live Postgres.** 0009 and 0010 join 0008 in
-  the unexecuted pile. 0010 in particular runs `update` statements over
-  existing rows before adding its constraint — read it before running it.
-- **No browser pass.** `/super` has never been rendered. It needs a
-  `super_admin` session, so it depends on the bring-up in
-  [10](10-live-db-bringup.md).
-- **The rate limiter has not been exercised.** Worth confirming the auth
-  limit actually trips, and that a legitimate offline-queue drain of ~20
-  queued punches doesn't.
-- **Suspension has not been tested end to end** — suspend a scratch org,
-  confirm its admin and its staff both see the notice, then restore.
+## The browser pass — and the bug it found
+
+Driven with Playwright against a production build. **It immediately found
+something neither the audit nor two green builds had.**
+
+### `middleware.ts` had never run. Not once.
+
+The smoke test asserted that every protected route redirects a signed-out
+visitor to `/login`. `/admin`, `/onboarding` and `/super` did. **`/dashboard`
+and `/checkin` did not** — they rendered their own signed-out fallback
+instead.
+
+That was the thread. Pulling it:
+
+- `/super` redirected to `/login?next=%2Fsuper` — which is the string its
+  *layout* passes, not the one middleware builds.
+- `/admin` redirected to `/login` with **no** query string at all — the
+  layout's `redirect("/onboarding")` bouncing onward.
+- `npm run build` output had **no `ƒ Middleware` line**.
+
+`middleware.ts` was at the repository root. The app is in `src/app`. Next
+requires middleware to sit beside the `app` directory, so with a `src`
+layout it must be `src/middleware.ts`. At the root it is simply not
+compiled — no warning, no error, and every build green.
+
+Consequences, all of which had been true since the file was written on
+6 Aug:
+
+- **Route protection was entirely page-level.** It happened to hold, because
+  every protected page also checks for itself — but `PROTECTED_PATHS` was
+  decorative, and any new route added on the assumption middleware covers it
+  would have shipped unguarded.
+- **The fail-closed env guard from [11](11-security-hardening.md) was
+  inert**, as were the `/checkin` and `/api` additions and the
+  segment-aware matcher. A whole hardening item that verified clean and did
+  nothing.
+- **Server-side session refresh was never happening.** This is the one with
+  reach beyond auth-gating: `@supabase/ssr` relies on middleware calling
+  `getUser()` on each request to rotate the token and write the refreshed
+  cookie. Its absence is the likeliest explanation for any "randomly signed
+  out" behaviour, and it would have got worse under the shorter JWT expiry
+  this session recommends.
+
+Fixed by `git mv middleware.ts src/middleware.ts`. The build now reports
+`ƒ Middleware 92.9 kB`, and all five protected routes redirect with the
+correct `?next=`.
+
+**Worth generalising:** a misplaced Next.js convention file fails silently.
+`tsc`, `lint` and `build` cannot tell you that a file you wrote is being
+ignored — only exercising the behaviour can. Two sessions of green builds
+did not catch this; the first browser assertion did.
+
+### Confirmed working
+
+| Check | Result |
+|---|---|
+| Protected routes | All five (`/admin`, `/dashboard`, `/checkin`, `/onboarding`, `/super`) redirect to `/login?next=…` |
+| Open redirect | `https://example.org/pwned`, `//example.org/pwned` and `/\example.org` all stayed on origin |
+| Auth rate limit | Engaged on attempt **7** — the per-identifier limit is 6. "Too many attempts for this account. Try again in 15 minutes." |
+| Credential enumeration | Failure message identical regardless of whether the account exists |
+| Horizontal overflow | `scrollWidth <= clientWidth` at 1366, 390 and 320, both themes |
+| Console | Clean. The only output is a headless-GPU `ReadPixels` warning from the WebGL hero — environmental, not ours |
+
+### A false alarm, recorded so it isn't chased again
+
+The first run reported eight headings stuck at `opacity: 0`. They are not.
+Measuring after `networkidle` measures *before* the scroll-triggered reveal
+has fired, so every below-the-fold heading reads as invisible. Scrolling the
+page and re-measuring gives `opacity: 1` on all eight.
+
+This is the same trap doc [07](07-ui-motion-layer.md) already documented
+with `fullPage` screenshots, hit again from a different direction. The
+smoke test now scrolls before it measures.
+
+**What is real:** with JavaScript disabled, all eight headings stay
+invisible. That is the `RevealHeading` SSR question doc
+[06](06-next-steps.md) lists as an open decision — now measured rather than
+suspected.
+
+### Still not verified
+
+- **`/super` has never been rendered.** It needs a `super_admin` session.
+- **The contact form fails against the live project** — correctly. It shows
+  *"We couldn't record that just now. Email hello@pac.africa directly"*
+  because `contact_requests` doesn't exist yet. The error path works; the
+  feature needs 0009.
+- **Suspension end to end** — suspend a scratch org, confirm its admin and
+  its staff both see the notice, then restore.
+- **That a legitimate offline-queue drain of ~20 punches doesn't trip the
+  attendance limiter.**
+
+---
+
+## What is actually applied on the live project
+
+Probed through PostgREST with the anon key on 10 Aug. This corrects the
+repeated claim in docs 03, 06 and 11 that *nothing* has run against a live
+database — **most of it has.**
+
+| Migration | State | Marker used |
+|---|---|---|
+| 0001–0006 | **applied** | `employees`, `notifications` tables respond |
+| 0007 | **applied** | `geo_distance_m()` resolves |
+| 0008 | **not applied** | `attendance_events.client_event_id` absent; `employee_site_id()` absent |
+| 0009 | **not applied** | `contact_requests` 404 |
+| 0010 | **not applied** | `organizations.suspended_at` absent |
+
+RLS is working: anon sees zero rows on every table.
+
+> An earlier hand-written 0008 — the sketch in [10](10-live-db-bringup.md)
+> §1 — was applied by hand. The file now in `supabase/migrations/` is a
+> superset of it: same policy tightening, plus the leave self-approval fix,
+> the device-secret fix, the four-tier read policies, `client_event_id` and
+> `employee_site_id()`. Neither of those last two exists on the project, so
+> **the committed 0008 still needs running.**
+
+### 0008 is safe to run twice
+
+That situation — a migration partly applied by hand before the file existed
+— is exactly why it has to be. Every statement is idempotent:
+
+| Object | Mechanism |
+|---|---|
+| policies | `drop policy if exists` then create |
+| functions | `create or replace` |
+| trigger | `drop trigger if exists` then create |
+| column | `add column if not exists` |
+| index | `create index if not exists` |
+| constraints | `drop constraint if exists`, then add — **with existing rows normalised first** |
+
+That last row is the one that would otherwise bite. `add constraint`
+validates rows already in the table, so a legacy `leave_requests.status` or
+`leave_type` outside the new allow-list would abort the entire migration.
+Unrecognised values are now folded onto a safe default first — a leave
+request is somebody's time off, not scratch data, so nothing is deleted.
+The `client_event_id` unique index likewise nulls any duplicate keys a
+partial run could have left behind, keeping the punch and discarding the key.
+
+All three of 0008–0010 now end with `notify pgrst, 'reload schema'`.
+PostgREST serves from a cached schema and does not notice DDL, so a new
+column or function 404s through the API until the cache happens to refresh
+— which looks exactly like the migration not having run, and cost time on
+10 Aug for precisely that reason.

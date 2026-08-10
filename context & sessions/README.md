@@ -28,9 +28,25 @@ v3 port (docs 09–10, plus corrections marked inline in 03, 04, 06, 07 and
 
 ## Where we left off — 10 Aug 2026 (hardening + platform console)
 
-`tsc --noEmit`, `npm run lint` and `npm run build` all green (**19 routes**,
-exit 0). On branch **`harden-security-audit`**, cut from `main` at
-`9fa2a6f`. Not merged, not pushed.
+`tsc`, `lint` and `build` green (**19 routes + `ƒ Middleware 92.9 kB`**),
+and a Playwright pass over the public routes at three widths in both themes.
+On branch **`harden-security-audit`**, cut from `main` at `9fa2a6f`. Not
+merged, not pushed.
+
+> **Read this first if you read nothing else.** The browser pass found that
+> **`middleware.ts` had never run** — it sat at the repository root while the
+> app lives in `src/`, so Next never compiled it. No warning, no error, two
+> sessions of green builds. Route protection was entirely page-level, and
+> **server-side session refresh was never happening**, which is the likeliest
+> cause of any "randomly signed out" behaviour. Moved to `src/middleware.ts`;
+> the build now reports it. Full account in
+> [12](12-platform-console-and-limits.md).
+
+> **The live project is further along than these docs used to claim.**
+> Migrations **0001–0007 are applied**. 0008, 0009 and 0010 are not. The
+> repeated "nothing has run against a live Supabase instance" in docs 03, 06
+> and 11 is out of date — see the table in
+> [12](12-platform-console-and-limits.md).
 
 > Note: the entry below previously said "committed, not pushed" of the v3
 > hero work. `main` *is* pushed — `github.com/Gordian-Knotz/attend-gk`,
@@ -82,12 +98,16 @@ The five things most worth knowing:
 
 ### Blocked on you, in order
 
-1. **Run migrations 0008, 0009 and 0010** (0008 with 0007 — 0007 alone does
-   not enforce the geofence). Until then **leave
-   `NEXT_PUBLIC_POWERSYNC_URL` unset**. These are the highest-risk
-   unexecuted thing in the repo: an RLS policy that is too tight breaks the
-   app at runtime, not at build. Read 0010 before running it — it rewrites
-   existing `billing_status` values before adding its constraint.
+1. **Run migrations 0008, 0009 and 0010.** 0007 is already applied and 0008
+   is not, so **the geofence is bypassable on the live project right now** —
+   a client can send `source: 'biometric'` and skip it. The exposure is
+   limited to a hand-crafted PostgREST call while `NEXT_PUBLIC_POWERSYNC_URL`
+   stays unset, so **keep it unset until 0008 is in**.
+
+   All three are safe to run twice. 0008 is deliberately idempotent because
+   an earlier hand-written version of it is already applied — the committed
+   file is a superset. 0008 and 0010 both rewrite existing rows before
+   adding constraints; read them before running.
 2. **Add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`.** Referenced in code,
    absent from the file. Blocks the `/admin/staff` invite and
    `scripts/seed-demo-data.mjs`.
@@ -95,12 +115,12 @@ The five things most worth knowing:
    seed against a real project, then the three computations most likely to
    be subtly wrong (day bucketing, check-in pairing, absent arithmetic).
    Add the 0008 cases from [11](11-security-hardening.md) to Phase 4.
-4. **Browser-check this session's changes.** Nothing from either part has
-   been looked at in a browser — including `/super`, which has never been
-   rendered at all. Both previous sessions shipped green builds that a
-   browser pass then found real defects in. Also worth exercising: that the
-   auth rate limit actually trips, that a ~20-punch offline drain doesn't,
-   and a suspend/restore round trip on a scratch org.
+4. **Browser-check the routes behind auth.** The public ones are done —
+   see [12](12-platform-console-and-limits.md). Still unrendered: `/super`
+   (never once), `/admin` as the real page, `/dashboard`, `/checkin`,
+   `/onboarding`. All need a session. Also worth exercising once you have
+   one: a suspend/restore round trip on a scratch org, and that a ~20-punch
+   offline-queue drain doesn't trip the attendance limiter.
 5. `npm install-scripts approve @journeyapps/wa-sqlite` — still blocked, and
    re-confirmed precisely on 10 Aug: `libpowersync.wasm` and
    `libpowersync-async.wasm` are genuinely absent from its `dist/`. It

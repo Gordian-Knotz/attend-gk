@@ -71,3 +71,6 @@ drop policy if exists "contact: super admin manages" on contact_requests;
 create policy "contact: super admin manages" on contact_requests for update
   using ((select role from public.current_employee()) = 'super_admin')
   with check ((select role from public.current_employee()) = 'super_admin');
+
+-- PostgREST caches the schema and does not notice DDL on its own.
+notify pgrst, 'reload schema';

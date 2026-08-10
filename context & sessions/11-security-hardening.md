@@ -317,10 +317,16 @@ Route sizes: `/` 31.3 kB (266 kB), `/admin` 8.32 kB (303 kB),
 
 **Not verified, and this is the important line in this document:**
 
-- **Nothing has run against a live Postgres.** 0008 is unexecuted SQL, like
-  0005–0007 before it. The RLS changes are the highest-risk part of this
-  session — a policy that is too tight breaks the app, and you find out at
-  runtime.
+- **0008 is unexecuted SQL.** The RLS changes are the highest-risk part of
+  this session — a policy that is too tight breaks the app, and you find out
+  at runtime, not at build.
+
+  > **Corrected later the same day.** This originally read "Nothing has run
+  > against a live Postgres… like 0005–0007 before it". Wrong: probing the
+  > project in `.env.local` showed **0001–0007 are all applied**. 0008 is
+  > unexecuted; the ones before it are not. Because 0007 *is* live and 0008
+  > is not, the geofence is bypassable on the real project right now. See
+  > [12](12-platform-console-and-limits.md).
 - **No browser pass.** Every change to a page or component here is
   build-clean and unlooked-at. [07](07-ui-motion-layer.md) and
   [09](09-v3-hero-and-bento.md) both record a green build followed by real

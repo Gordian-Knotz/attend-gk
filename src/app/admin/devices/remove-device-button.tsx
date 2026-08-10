@@ -14,17 +14,30 @@ export function RemoveDeviceButton({ deviceId }: { deviceId: string }) {
   async function handleClick() {
     if (!window.confirm("Remove this device? It will stop being able to push punches.")) return;
     setLoading(true);
-    const result = await removeDevice(deviceId);
-    setLoading(false);
-    if (result?.error) {
-      window.alert(result.error);
-      return;
+    try {
+      const result = await removeDevice(deviceId);
+      if (result?.error) {
+        window.alert(result.error);
+        return;
+      }
+      router.refresh();
+    } catch {
+      window.alert("Couldn't remove the device. Please try again.");
+    } finally {
+      // In finally so a rejected action doesn't leave the button spinning
+      // forever with no way to retry.
+      setLoading(false);
     }
-    router.refresh();
   }
 
   return (
-    <Button variant="ghost" size="icon" onClick={handleClick} disabled={loading}>
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="Remove device"
+      onClick={handleClick}
+      disabled={loading}
+    >
       {loading ? <Loader2 className="animate-spin" /> : <Trash2 />}
     </Button>
   );

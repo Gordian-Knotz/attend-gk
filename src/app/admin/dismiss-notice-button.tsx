@@ -13,13 +13,18 @@ export function DismissNoticeButton({ noticeId }: { noticeId: string }) {
 
   async function handleClick() {
     setLoading(true);
-    const result = await dismissNotice(noticeId);
-    setLoading(false);
-    if (result?.error) {
-      window.alert(result.error);
-      return;
+    try {
+      const result = await dismissNotice(noticeId);
+      if (result?.error) {
+        window.alert(result.error);
+        return;
+      }
+      router.refresh();
+    } catch {
+      window.alert("Couldn't dismiss the notice. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    router.refresh();
   }
 
   return (

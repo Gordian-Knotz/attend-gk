@@ -4,6 +4,7 @@ import { getEmployeeContext } from "@/lib/supabase/employee";
 import { createClient } from "@/lib/supabase/server";
 import { buildDailySeries, localDateKey, recentDays } from "@/lib/attendance-series";
 import { buildTimesheet } from "@/lib/timesheet";
+import { formatDate } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/admin/page-header";
 import { Callout } from "@/components/callout";
@@ -48,7 +49,7 @@ export default async function ReportsPage({
   const windowEnd = new Date(windowDays[windowDays.length - 1]);
   windowEnd.setDate(windowEnd.getDate() + 1);
 
-  const [{ data: sites }, { data: workforce }, { data: events }, { data: leaveRows }] =
+  const [sitesRes, workforceRes, eventsRes, leaveRes] =
     await Promise.all([
       supabase.from("sites").select("id, name").eq("org_id", identity.orgId),
       supabase
@@ -72,6 +73,28 @@ export default async function ReportsPage({
         .lte("start_date", localDateKey(windowDays[windowDays.length - 1]))
         .gte("end_date", localDateKey(windowStart)),
     ]);
+
+  // Without this, a failed query fell through the `?? []` fallbacks and the
+  // page rendered a complete-looking report of zeros — and handed those
+  // zeros to ExportButton, so someone could download a timesheet that
+  // understated every employee's hours and never know a query had failed.
+  const loadError =
+    sitesRes.error ?? workforceRes.error ?? eventsRes.error ?? leaveRes.error;
+
+  if (loadError) {
+    return (
+      <Callout variant="critical" label="Report unavailable">
+        The attendance data for this period couldn&apos;t be loaded, so the
+        figures and the CSV export would both be wrong. Reload the page, and
+        don&apos;t export until it renders cleanly.
+      </Callout>
+    );
+  }
+
+  const { data: sites } = sitesRes;
+  const { data: workforce } = workforceRes;
+  const { data: events } = eventsRes;
+  const { data: leaveRows } = leaveRes;
 
   const siteNameById = new Map((sites ?? []).map((s) => [s.id, s.name]));
   const employees = workforce ?? [];
@@ -127,7 +150,10 @@ export default async function ReportsPage({
     .filter((d) => d.scheduled > 0)
     .map(({ label, rate }) => ({ label, rate }));
 
-  const periodLabel = `${windowStart.toLocaleDateString()} – ${now.toLocaleDateString()}`;
+  // Explicit locale and timezone: a bare toLocaleDateString() renders
+  // according to the server's, so the same CSV could say "10/08/2026" or
+  // "8/10/2026" depending on where it was generated.
+  const periodLabel = `${formatDate(windowStart)} – ${formatDate(now)}`;
   const fileName = `attendpac-timesheet-${localDateKey(windowStart)}-to-${localDateKey(now)}.csv`;
 
   return (

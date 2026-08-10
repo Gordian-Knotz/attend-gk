@@ -78,7 +78,9 @@ const RotatingText = forwardRef<RotatingTextRef, RotatingTextProps>(
     };
 
     const elements = useMemo(() => {
-      const currentText: string = texts[currentTextIndex];
+      // `texts` shrinking below the live index — or arriving empty — left
+      // currentText undefined and threw on .split().
+      const currentText: string = texts[currentTextIndex] ?? '';
       if (splitBy === 'characters') {
         const words = currentText.split(' ');
         return words.map((word, i) => ({
@@ -172,6 +174,14 @@ const RotatingText = forwardRef<RotatingTextRef, RotatingTextProps>(
       [next, previous, jumpTo, reset]
     );
 
+    // Re-anchor if `texts` shrinks under a live index, so the component
+    // recovers instead of rendering nothing until the next rotation.
+    useEffect(() => {
+      if (texts.length > 0 && currentTextIndex > texts.length - 1) {
+        setCurrentTextIndex(0);
+      }
+    }, [texts.length, currentTextIndex]);
+
     useEffect(() => {
       if (!auto) return;
       const intervalId = setInterval(next, rotationInterval);
@@ -185,7 +195,7 @@ const RotatingText = forwardRef<RotatingTextRef, RotatingTextProps>(
         layout
         transition={transition}
       >
-        <span className="sr-only">{texts[currentTextIndex]}</span>
+        <span className="sr-only">{texts[currentTextIndex] ?? ''}</span>
         <AnimatePresence mode={animatePresenceMode} initial={animatePresenceInitial}>
           <motion.span
             key={currentTextIndex}

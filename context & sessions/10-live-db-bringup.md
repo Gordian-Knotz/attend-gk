@@ -128,10 +128,11 @@ After each: re-run the Phase 0.1 probe and confirm the flag flipped.
 
 1. Sign up via `/login?mode=sign-up`. You will be routed to `/onboarding` —
    ignore it.
-2. Run `supabase/setup-admin.sql`. **Note it is hardcoded to
-   `imranissa0@gmail.com`** — change the email on line 21 and the name on
-   lines 41/46 if that is not your account. Its header also says "after
-   0001–0003", which predates 0005/0006; run it after `seed.sql` regardless.
+2. Run `supabase/setup-admin.sql`. It now takes `v_admin_email` and
+   `v_admin_name` as declared variables at the top of the block and refuses
+   to run until you change them from the `you@example.com` placeholder.
+   (Until 10 Aug it was hardcoded to a real personal address — removed, see
+   [11](11-security-hardening.md).) Run it after `seed.sql`.
 
 ---
 

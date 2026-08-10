@@ -13,17 +13,28 @@ export function DeleteShiftButton({ shiftId }: { shiftId: string }) {
 
   async function handleClick() {
     setLoading(true);
-    const result = await deleteShift(shiftId);
-    setLoading(false);
-    if (result?.error) {
-      window.alert(result.error);
-      return;
+    try {
+      const result = await deleteShift(shiftId);
+      if (result?.error) {
+        window.alert(result.error);
+        return;
+      }
+      router.refresh();
+    } catch {
+      window.alert("Couldn't delete the shift. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    router.refresh();
   }
 
   return (
-    <Button variant="ghost" size="icon" onClick={handleClick} disabled={loading}>
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="Delete shift"
+      onClick={handleClick}
+      disabled={loading}
+    >
       {loading ? <Loader2 className="animate-spin" /> : <X />}
     </Button>
   );

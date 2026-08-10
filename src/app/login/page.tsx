@@ -47,6 +47,27 @@ export default function LoginPage() {
   );
 }
 
+/**
+ * `?next=` is attacker-controlled: anyone can send a victim a
+ * `/login?next=https://evil.example` link, and the redirect fires the
+ * instant they finish typing their password — which is the worst possible
+ * moment to hand someone to a look-alike site.
+ *
+ * Only same-origin *relative* paths are accepted. Rejects absolute URLs,
+ * protocol-relative `//host`, backslash variants that some parsers
+ * normalise to slashes, and `javascript:` / `data:` schemes.
+ */
+function safeNext(value: string | null): string | null {
+  if (!value) return null;
+  const candidate = value.trim();
+  if (!candidate.startsWith("/")) return null;
+  if (candidate.startsWith("//") || candidate.startsWith("/\\")) return null;
+  if (candidate.includes("\\")) return null;
+  // A control character can smuggle a scheme past the checks above.
+  if (/[\u0000-\u001F\u007F]/.test(candidate)) return null;
+  return candidate;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -68,8 +89,9 @@ function LoginForm() {
   }
 
   async function routeSignedInUser(supabase: ReturnType<typeof createClient>) {
-    if (next) {
-      router.push(next);
+    const destination = safeNext(next);
+    if (destination) {
+      router.push(destination);
       router.refresh();
       return;
     }

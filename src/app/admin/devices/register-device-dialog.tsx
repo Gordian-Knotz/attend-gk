@@ -40,22 +40,26 @@ export function RegisterDeviceDialog({ sites }: { sites: Site[] }) {
     setLoading(true);
     setError(null);
 
-    const form = new FormData(e.currentTarget);
-    const result = await registerDevice({
-      siteId,
-      deviceId: String(form.get("deviceId")),
-      model: String(form.get("model") ?? ""),
-    });
+    try {
+      const form = new FormData(e.currentTarget);
+      const result = await registerDevice({
+        siteId,
+        deviceId: String(form.get("deviceId")),
+        model: String(form.get("model") ?? ""),
+      });
 
-    setLoading(false);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
 
-    if (result?.error) {
-      setError(result.error);
-      return;
+      setOpen(false);
+      router.refresh();
+    } catch {
+      setError("Couldn't register the device. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setOpen(false);
-    router.refresh();
   }
 
   return (

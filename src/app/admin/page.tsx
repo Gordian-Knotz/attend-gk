@@ -8,6 +8,7 @@ import {
   localDateKey,
   recentDays,
 } from "@/lib/attendance-series";
+import { formatDate, formatTime, wallClockIn } from "@/lib/timezone";
 import { AttendanceTrendChart } from "@/components/charts/attendance-trend-chart";
 import { PostNoticeDialog } from "./notice-dialog";
 import { DismissNoticeButton } from "./dismiss-notice-button";
@@ -68,26 +69,22 @@ export default async function AdminOverviewPage() {
   const supabase = await createClient();
 
   const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(todayStart);
-  todayEnd.setDate(todayEnd.getDate() + 1);
-  const todayDateStr = localDateKey(todayStart);
-  const pastCutoff = now.getHours() >= 9; // see classifyCheckIn's note on this being a placeholder rule
 
   // One 14-day window serves both the trend chart and today's numbers —
   // today is just the last bucket, so there's no reason to query twice.
+  // All boundaries are midnight in the organization's timezone, not the
+  // server's; see src/lib/timezone.ts.
   const trendDays = recentDays(14, now);
   const windowStart = trendDays[0];
+  const todayStart = trendDays[trendDays.length - 1];
+  const todayEnd = new Date(todayStart.getTime() + 86_400_000);
+  const todayDateStr = localDateKey(todayStart);
   const windowStartDateStr = localDateKey(windowStart);
+  // see classifyCheckIn's note on this being a placeholder rule
+  const pastCutoff = wallClockIn(now).hour >= 9;
 
-  const [
-    { data: sites },
-    { data: workforce },
-    { data: windowEvents },
-    { data: leaveRows },
-    { data: notices },
-  ] = await Promise.all([
+  const [sitesRes, workforceRes, eventsRes, leaveRes, noticesRes] =
+    await Promise.all([
       supabase.from("sites").select("id, name").eq("org_id", identity.orgId),
       supabase
         .from("employees")
@@ -115,6 +112,33 @@ export default async function AdminOverviewPage() {
         .order("created_at", { ascending: false })
         .limit(5),
     ]);
+
+  // A failed query used to arrive here as `undefined` and fall through the
+  // `?? []` fallbacks, so a database outage rendered as an empty org —
+  // "No staff yet", every KPI zero. That reads as a first-run onboarding
+  // state, which is the most misleading thing it could have said.
+  const loadError =
+    sitesRes.error ??
+    workforceRes.error ??
+    eventsRes.error ??
+    leaveRes.error ??
+    noticesRes.error;
+
+  if (loadError) {
+    return (
+      <Callout variant="critical" label="Dashboard unavailable">
+        Today&apos;s attendance data couldn&apos;t be loaded, so the numbers
+        below would be wrong. Reload the page; if this persists, check the
+        database connection before trusting any figure on this screen.
+      </Callout>
+    );
+  }
+
+  const { data: sites } = sitesRes;
+  const { data: workforce } = workforceRes;
+  const { data: windowEvents } = eventsRes;
+  const { data: leaveRows } = leaveRes;
+  const { data: notices } = noticesRes;
 
   const siteNameById = new Map((sites ?? []).map((s) => [s.id, s.name]));
 
@@ -181,7 +205,7 @@ export default async function AdminOverviewPage() {
   const siteStats = (sites ?? []).map((s) => {
     const siteRows = rows.filter((r) => r.siteId === s.id);
     const present = siteRows.filter((r) => r.status === "present" || r.status === "late").length;
-    return { name: s.name, present, total: siteRows.length };
+    return { id: s.id, name: s.name, present, total: siteRows.length };
   });
 
   const hasAnyData = (workforce?.length ?? 0) > 0;
@@ -258,7 +282,7 @@ export default async function AdminOverviewPage() {
               const pct = site.total > 0 ? Math.round((site.present / site.total) * 100) : 0;
               return (
                 <div
-                  key={site.name}
+                  key={site.id}
                   className="flex items-center gap-3 border-b border-border py-3 last:border-0"
                 >
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-secondary">
@@ -328,12 +352,7 @@ export default async function AdminOverviewPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {r.checkInTime
-                          ? new Date(r.checkInTime).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "—"}
+                        {r.checkInTime ? formatTime(r.checkInTime) : "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {r.status === "late" && "Checked in after 7:15 AM"}
@@ -375,10 +394,7 @@ export default async function AdminOverviewPage() {
                         {notice.level}
                       </Badge>
                       <span className="font-mono text-[10px] text-muted-foreground">
-                        {new Date(notice.created_at).toLocaleDateString([], {
-                          day: "numeric",
-                          month: "short",
-                        })}
+                        {formatDate(notice.created_at)}
                       </span>
                       {notice.site_id && (
                         <span className="font-mono text-[10px] text-muted-foreground">

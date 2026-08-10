@@ -21,8 +21,10 @@ fixtures and expected values for each check. The list below is the summary.
 
 Before trusting any of it:
 
-1. **Run migrations 0005 and 0006** on a scratch project. They follow the
-   same idiom as 0003/0004 but have never been executed.
+1. **Run migrations 0005, 0006, 0007 and 0008** on a scratch project. They
+   follow the same idiom as 0003/0004 but have never been executed. 0007
+   and 0008 install a trigger and policies that can reject writes — see
+   [10](10-live-db-bringup.md) §1 and [11](11-security-hardening.md).
 2. **Re-run `seed.sql`** — it now inserts notices and must run *after* 0006,
    not after 0001 as its old header said.
 3. **Check `/admin` and `/admin/reports` against seeded data.** The

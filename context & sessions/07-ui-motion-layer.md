@@ -191,7 +191,6 @@ Chosen intensity: **expressive**. Scope: **everywhere**.
 | Industry tabs | `RevealHeading` |
 | Access table | `RevealHeading` + `Reveal` |
 | FAQ | `RevealHeading` + `Reveal` |
-| CTA band | `BlurLabel` + `RevealHeading` |
 | Contact | `BlurLabel` + `RevealHeading` |
 | Stat tiles | `CountUp` — landing, `/admin`, reports, organizations |
 | `/admin/*` | one `Reveal` in the layout (see below) |
@@ -279,14 +278,18 @@ Still unreviewed: mobile widths, and every route behind auth.
 
 Each layer detaches independently:
 
-- **Backdrop only** — delete `<HeroBackdrop />` from `src/app/page.tsx`
+> **Superseded 10 Aug** — the hero is `HeroThreads` now, not `HeroBackdrop`.
+> The three steps below are rewritten for the current page.
+
+- **Backdrop only** — delete `<HeroThreads />` from `src/app/page.tsx`
   (leave the full-bleed wrapper, it's harmless), then `npm uninstall ogl`
-  and remove `reactbits/Aurora.tsx`.
+  and remove `reactbits/Threads.tsx`. `reactbits/Aurora.tsx` and
+  `site/hero-backdrop.tsx` are already orphaned.
 - **CTA texture** — delete `<CtaTexture />` from `src/app/page.tsx` and
   remove `reactbits/ShapeGrid.tsx`. Keep the `dark:bg-pac-graphite` on that
   section regardless; it's a contrast fix, not decoration.
-- **Card glare** — `FeatureCard` and `HeroPreview` both fall back to a
-  plain bordered card; drop the `GlareHover` branch in each.
+- **Card glare** — `FeatureCard` falls back to a plain bordered card; drop
+  the `GlareHover` branch. `HeroPreview` is orphaned as of 10 Aug.
 - **All scroll reveals** — make `Reveal` return `<div className={className}>
   {children}</div>` unconditionally. One edit, applies everywhere.
 - **Admin only** — remove the `Reveal` from `src/app/admin/layout.tsx`.

@@ -14,7 +14,9 @@ create or replace function public.create_organization_for_self(
   site_name text default 'Head Office',
   site_lat double precision default -1.2833,
   site_lng double precision default 36.8167,
-  site_radius_m integer default 150
+  site_radius_m integer default 150,
+  -- Trailing and defaulted so existing callers keep working unchanged.
+  admin_name text default null
 )
 returns table (org_id uuid, site_id uuid)
 language plpgsql
@@ -34,11 +36,21 @@ begin
     raise exception 'This account is already linked to an organization';
   end if;
 
-  v_slug := lower(regexp_replace(trim(org_name), '[^a-zA-Z0-9]+', '-', 'g'))
-            || '-' || substr(md5(random()::text), 1, 6);
+  -- A blank or punctuation-only name would produce an empty slug and an
+  -- organization nobody can identify in the platform list.
+  if coalesce(trim(org_name), '') = '' then
+    raise exception 'Organization name is required';
+  end if;
+
+  -- gen_random_uuid() rather than 6 hex chars of md5(random()): the slug
+  -- column is unique, and 24 bits collides often enough to fail a signup
+  -- for a reason the user can do nothing about.
+  v_slug := trim(both '-' from
+              lower(regexp_replace(trim(org_name), '[^a-zA-Z0-9]+', '-', 'g')))
+            || '-' || replace(gen_random_uuid()::text, '-', '');
 
   insert into organizations (name, slug, plan_tier, billing_status)
-  values (org_name, v_slug, 'starter', 'trialing')
+  values (trim(org_name), v_slug, 'starter', 'trialing')
   returning id into v_org_id;
 
   insert into sites (org_id, name, geofence_lat, geofence_lng, geofence_radius_m)
@@ -50,7 +62,12 @@ begin
     auth.uid(),
     v_org_id,
     v_site_id,
-    coalesce((select email from auth.users where id = auth.uid()), 'Admin'),
+    -- Never the email address. `employees.full_name` is shown on the
+    -- roster to managers and colleagues, so defaulting it to auth.users
+    -- .email published the founder's private address to everyone they
+    -- later invited. Onboarding collects a real name; 'Admin' is the
+    -- fallback for callers that don't pass one.
+    coalesce(nullif(trim(admin_name), ''), 'Admin'),
     'org_admin'
   );
 

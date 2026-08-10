@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Menu, Search, LogOut, UserCog, Building2 } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
+import { useSignOut } from "@/components/auth/use-sign-out";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -40,20 +39,18 @@ function initials(name: string) {
 
 export function AdminTopbar() {
   const identity = useAdminIdentity();
-  const router = useRouter();
-
-  async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
-  }
+  const { signOut, signingOut } = useSignOut();
 
   return (
     <header className="flex h-16 items-center gap-3 border-b border-border px-4 md:px-6">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon" className="md:hidden">
+          <Button
+            variant="outline"
+            size="icon"
+            className="md:hidden"
+            aria-label="Open navigation menu"
+          >
             <Menu />
           </Button>
         </DropdownMenuTrigger>
@@ -80,7 +77,7 @@ export function AdminTopbar() {
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="ml-1">
+            <button className="ml-1" aria-label={`Account menu for ${identity.fullName}`}>
               <Avatar>
                 <AvatarFallback>{initials(identity.fullName)}</AvatarFallback>
               </Avatar>
@@ -99,8 +96,8 @@ export function AdminTopbar() {
                 <UserCog /> Account settings
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleSignOut}>
-              <LogOut /> Sign out
+            <DropdownMenuItem onClick={signOut} disabled={signingOut}>
+              <LogOut /> {signingOut ? "Signing out…" : "Sign out"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

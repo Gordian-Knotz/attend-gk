@@ -19,7 +19,17 @@ type CalloutProps = {
 export function Callout({ variant, label, meta, children, className }: CalloutProps) {
   if (variant === "critical") {
     return (
-      <div className={cn("rounded-sm bg-pac-ink px-5 py-4 text-pac-paper", className)}>
+      // On paper this is an ink panel and reads loudly. On ink the page
+      // background already *is* --pac-ink, so the panel vanished — exactly
+      // the failure 07's browser pass found on the CTA band, and here it
+      // hides the callout reserved for things someone must act on.
+      <div
+        className={cn(
+          "rounded-sm border border-transparent bg-pac-ink px-5 py-4 text-pac-paper",
+          "dark:border-border dark:bg-pac-graphite",
+          className
+        )}
+      >
         <div className="flex items-center justify-between">
           <span className="font-label text-primary">{label}</span>
           {meta && (

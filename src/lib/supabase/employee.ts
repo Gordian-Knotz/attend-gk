@@ -11,7 +11,12 @@ export type EmployeeContext = {
 };
 
 /** Returns null if the signed-in user has no employees row yet (fresh
- *  signup that hasn't completed onboarding) or isn't signed in at all. */
+ *  signup that hasn't completed onboarding) or isn't signed in at all.
+ *
+ *  Throws — rather than returning null — when the lookup itself fails.
+ *  Callers treat null as "needs onboarding" and redirect there, so
+ *  swallowing a transient database error used to walk an established admin
+ *  into the create-an-organization flow. */
 export async function getEmployeeContext(): Promise<EmployeeContext | null> {
   const supabase = await createClient();
 
@@ -21,13 +26,17 @@ export async function getEmployeeContext(): Promise<EmployeeContext | null> {
 
   if (!user) return null;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("employees")
     .select(
       "id, full_name, role, org_id, site_id, organizations(name), sites(name)"
     )
     .eq("id", user.id)
     .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load employee context: ${error.message}`);
+  }
 
   if (!data) return null;
 

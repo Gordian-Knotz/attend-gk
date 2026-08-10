@@ -100,6 +100,17 @@ Engineering delivery: Gordian Knotz Technovation.
    - `supabase/migrations/0006_notifications.sql` — the `notifications`
      table (org- or site-scoped notices with an info/warning/critical
      level) plus its RLS.
+   - `supabase/migrations/0007_geofence_enforcement.sql` — moves the
+     geofence out of the server action and into a `BEFORE INSERT` trigger,
+     so every write path is covered (PowerSync's upload path never calls
+     the action). **Not sufficient alone — apply 0008 with it.**
+   - `supabase/migrations/0008_attendance_insert_integrity.sql` — the
+     policies 0007 depends on. 0001's insert policy constrained only
+     `employee_id`, so a client could pick the trigger's exempt branches
+     itself and skip the geofence. Also stops staff self-approving leave,
+     stops plain staff reading device webhook secrets, and adds the
+     idempotency key the offline queue needs. Security-relevant: do not
+     run 0007 without it.
 4. Run `supabase/seed.sql` — creates one demo org ("Alpha Pride Security"),
    one demo site ("Two Rivers Mall", Nairobi CBD coordinates), and two demo
    notices. Run it after *all* the migrations, not just 0001 — it inserts
@@ -227,4 +238,3 @@ The full audit, the reasoning behind each call, and a file-by-file
 breakdown live in **[`context & sessions/`](context%20&%20sessions/)** —
 start with its README. Read `04-database-and-rls.md` before changing
 anything under `supabase/`.
-"# attend-gk" 

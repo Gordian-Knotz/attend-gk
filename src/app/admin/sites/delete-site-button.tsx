@@ -22,17 +22,28 @@ export function DeleteSiteButton({
       return;
     }
     setLoading(true);
-    const result = await deleteSite(siteId);
-    setLoading(false);
-    if (result?.error) {
-      window.alert(result.error);
-      return;
+    try {
+      const result = await deleteSite(siteId);
+      if (result?.error) {
+        window.alert(result.error);
+        return;
+      }
+      router.refresh();
+    } catch {
+      window.alert("Couldn't remove the site. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    router.refresh();
   }
 
   return (
-    <Button variant="ghost" size="icon" onClick={handleClick} disabled={loading}>
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label={`Remove ${siteName}`}
+      onClick={handleClick}
+      disabled={loading}
+    >
       {loading ? <Loader2 className="animate-spin" /> : <Trash2 />}
     </Button>
   );

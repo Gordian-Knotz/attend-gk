@@ -36,7 +36,13 @@ export default async function DevicesPage() {
   const [{ data: devices }, { data: sites }] = await Promise.all([
     supabase
       .from("biometric_devices")
-      .select("id, device_id, model, site_id, last_seen_at, webhook_secret, created_at")
+      // webhook_secret is deliberately NOT selected. It authenticates a
+      // terminal, and 'biometric' is the geofence-exempt source in 0007 —
+      // so anyone holding one can post unfenced attendance. Rendering even
+      // the first 8 characters put it into the page HTML for every viewer
+      // and every proxy in between. Retrieval belongs behind an explicit
+      // service-role action, not a list view; see doc 11.
+      .select("id, device_id, model, site_id, last_seen_at, created_at")
       .eq("org_id", employee.orgId)
       .order("created_at", { ascending: true }),
     supabase.from("sites").select("id, name").eq("org_id", employee.orgId),
@@ -88,7 +94,7 @@ export default async function DevicesPage() {
                       {timeAgo(d.last_seen_at)}
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
-                      {d.webhook_secret.slice(0, 8)}…
+                      Hidden
                     </TableCell>
                     {canManage && (
                       <TableCell>

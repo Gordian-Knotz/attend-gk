@@ -239,6 +239,24 @@ what it was written to do.
 today is limited to a hand-crafted PostgREST call; turning sync on is what
 makes it the normal write path.
 
+> **Written 10 Aug 2026 — see [11](11-security-hardening.md).** 0008 now
+> exists and does all three, plus three more holes the audit found on
+> adjacent tables:
+>
+> - **`leave: self insert` let staff self-approve.** Same shape as the bug
+>   above — the check was on `employee_id` only, `status` had no CHECK
+>   constraint, and `/admin` counts `status = 'approved'` as on-leave rather
+>   than absent. An independent fraud path that never touches the geofence.
+> - **`devices: select in org` had no role check**, so any employee could
+>   read `webhook_secret` — which authenticates the `biometric` source, the
+>   one 0007 exempts from the geofence.
+> - **`summary: select` and `leave: select` were "self or whole org"**, so
+>   plain staff could read every colleague's hours and leave history.
+>
+> **Still unexecuted.** 0008 is re-runnable by design (`drop policy if
+> exists` throughout), so it applies whether or not 0001–0007 are already on
+> the target database.
+
 ## Migration order
 
 ```
@@ -249,7 +267,7 @@ makes it the normal write path.
 0005_super_admin_site_read.sql  RLS fix        ← 6 Aug session
 0006_notifications.sql          notices        ← 6 Aug session
 0007_geofence_enforcement.sql   geofence trigger  ← 6 Aug session, unrun
-0008_…_insert_integrity.sql     not written yet — see above
+0008_attendance_insert_integrity.sql  RLS + trigger hardening ← 10 Aug, unrun
 seed.sql                        demo org, site, notices  ← run last
 ```
 

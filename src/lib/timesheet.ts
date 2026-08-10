@@ -37,7 +37,9 @@ export function buildTimesheet({
   leave: SeriesLeave[];
   days: Date[];
 }): TimesheetRow[] {
-  const dayKeys = days.map(localDateKey);
+  // Not `days.map(localDateKey)` — map passes the index as the second
+  // argument, which localDateKey now reads as a timezone.
+  const dayKeys = days.map((d) => localDateKey(d));
   const dayKeySet = new Set(dayKeys);
 
   // employee -> day -> events (already time-ordered by the caller's query)
@@ -128,8 +130,18 @@ export function timesheetToCsv(rows: TimesheetRow[], periodLabel: string): strin
   ];
 
   const escape = (value: string | number) => {
-    const s = String(value);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    let s = String(value);
+
+    // Spreadsheet formula injection. `fullName` and `siteName` are
+    // operator-supplied free text, and this file is built to be opened in
+    // Excel — a cell starting =, +, -, @, TAB or CR is executed on open,
+    // which is enough to exfiltrate the sheet or run a shell via DDE.
+    // Prefixing an apostrophe forces the cell to be read as text.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+
+    // \r added: a lone carriage return inside a field would otherwise be
+    // emitted unquoted and break the row apart, since lines are CRLF.
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
 
   const lines = rows.map((r) =>

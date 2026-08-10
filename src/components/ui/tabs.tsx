@@ -44,6 +44,9 @@ function TabsTrigger({
       className={cn(
         "font-label inline-flex h-9 items-center justify-center border-b-2 border-transparent px-3 -mb-px text-muted-foreground transition-colors",
         "data-[state=active]:border-primary data-[state=active]:text-foreground",
+        // Same focus-visible treatment as Button. Without it a keyboard
+        // user tabbing the industry tabs has no idea where they are.
+        "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         "disabled:pointer-events-none disabled:opacity-50",
         className
       )}
@@ -59,7 +62,10 @@ function TabsContent({
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn("flex-1 outline-none", className)}
+      className={cn(
+        "flex-1 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        className
+      )}
       {...props}
     />
   );

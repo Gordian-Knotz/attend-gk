@@ -67,11 +67,21 @@ export function BentoGrid({
     const proximity = PROXIMITY_RADIUS * 0.5;
     const fadeDistance = PROXIMITY_RADIUS * 0.75;
 
-    function paint(clientX: number, clientY: number) {
-      const cards = grid!.querySelectorAll<HTMLElement>(".bento-card");
+    // Cached across a pointer stream. Re-querying the DOM and re-measuring
+    // eight cards on every pointermove is layout thrash on the main thread,
+    // and pointermove fires at the pointer's full sample rate.
+    let cards: HTMLElement[] = [];
+    let rects: DOMRect[] = [];
 
-      cards.forEach((card) => {
-        const rect = card.getBoundingClientRect();
+    function measure() {
+      cards = Array.from(grid!.querySelectorAll<HTMLElement>(".bento-card"));
+      rects = cards.map((card) => card.getBoundingClientRect());
+    }
+
+    function paint(clientX: number, clientY: number) {
+      cards.forEach((card, i) => {
+        const rect = rects[i];
+        if (!rect) return;
         const centreX = rect.left + rect.width / 2;
         const centreY = rect.top + rect.height / 2;
 
@@ -94,38 +104,70 @@ export function BentoGrid({
 
         // Percentages relative to the card, so the gradient origin tracks the
         // pointer even on the card the pointer isn't over.
-        card.style.setProperty(
-          "--glow-x",
-          `${((clientX - rect.left) / rect.width) * 100}%`
-        );
-        card.style.setProperty(
-          "--glow-y",
-          `${((clientY - rect.top) / rect.height) * 100}%`
-        );
-        card.style.setProperty("--glow-intensity", intensity.toString());
+        const glowX = `${((clientX - rect.left) / rect.width) * 100}%`;
+        const glowY = `${((clientY - rect.top) / rect.height) * 100}%`;
+        const glowIntensity = intensity.toFixed(3);
+
+        // Only write when the value actually changed. Setting a custom
+        // property always invalidates style for that element, even to the
+        // same value, so the far cards sitting at 0 would otherwise be
+        // restyled on every single move.
+        if (card.style.getPropertyValue("--glow-intensity") !== glowIntensity) {
+          card.style.setProperty("--glow-intensity", glowIntensity);
+        }
+        // The origin only matters while the card is lit.
+        if (intensity > 0) {
+          if (card.style.getPropertyValue("--glow-x") !== glowX) {
+            card.style.setProperty("--glow-x", glowX);
+          }
+          if (card.style.getPropertyValue("--glow-y") !== glowY) {
+            card.style.setProperty("--glow-y", glowY);
+          }
+        }
       });
     }
 
     function clear() {
-      grid!
-        .querySelectorAll<HTMLElement>(".bento-card")
-        .forEach((card) => card.style.setProperty("--glow-intensity", "0"));
+      cards.forEach((card) => card.style.setProperty("--glow-intensity", "0"));
     }
 
     // Scoped to the grid rather than `document` (which is what MagicBento
     // does): the admin <main> is its own scroll container and the grid fills
     // it, so a document listener would fire constantly for no extra effect.
     // clientX/clientY are viewport-relative, so scrolling needs no handling.
+    // Coalesced to one paint per frame with the latest coordinates —
+    // pointermove can fire several times between frames, and every extra
+    // run was work the compositor threw away.
+    let frame = 0;
+    let pending: { x: number; y: number } | null = null;
+
     function handleMove(e: PointerEvent) {
-      paint(e.clientX, e.clientY);
+      pending = { x: e.clientX, y: e.clientY };
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (pending) paint(pending.x, pending.y);
+      });
     }
 
+    function handleEnter() {
+      // Re-measure on entry rather than per move: rects only change on
+      // scroll or resize, both of which end the pointer stream anyway.
+      measure();
+    }
+
+    measure();
+    grid.addEventListener("pointerenter", handleEnter);
     grid.addEventListener("pointermove", handleMove);
     grid.addEventListener("pointerleave", clear);
+    window.addEventListener("resize", measure);
 
     return () => {
+      if (frame) cancelAnimationFrame(frame);
+      grid.removeEventListener("pointerenter", handleEnter);
       grid.removeEventListener("pointermove", handleMove);
       grid.removeEventListener("pointerleave", clear);
+      window.removeEventListener("resize", measure);
       clear();
     };
   }, [reduceMotion]);

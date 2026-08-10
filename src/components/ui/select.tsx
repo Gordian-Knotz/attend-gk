@@ -47,7 +47,10 @@ function SelectContent({
         data-slot="select-content"
         position={position}
         className={cn(
-          "bg-popover text-popover-foreground relative z-50 min-w-[8rem] overflow-hidden rounded-sm border border-border shadow-md",
+          // A long site list overflowed the viewport with no way to reach
+          // the items past the fold. Vertical scroll only — horizontal
+          // would let a long site name widen the popover off-screen.
+          "bg-popover text-popover-foreground relative z-50 max-h-[var(--radix-select-content-available-height)] min-w-[8rem] overflow-x-hidden overflow-y-auto rounded-sm border border-border shadow-md",
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",

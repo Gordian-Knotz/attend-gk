@@ -47,6 +47,14 @@ const AnimatedContent: React.FC<AnimatedContentProps> = ({
 }) => {
   const ref = useRef<HTMLDivElement>(null);
 
+  // Held in refs so an inline arrow passed as onComplete — the normal way
+  // to call this — doesn't change identity every render, tear down the
+  // ScrollTrigger and rebuild the whole timeline mid-animation.
+  const onCompleteRef = useRef(onComplete);
+  const onDisappearanceCompleteRef = useRef(onDisappearanceComplete);
+  onCompleteRef.current = onComplete;
+  onDisappearanceCompleteRef.current = onDisappearanceComplete;
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -72,7 +80,7 @@ const AnimatedContent: React.FC<AnimatedContentProps> = ({
       paused: true,
       delay,
       onComplete: () => {
-        if (onComplete) onComplete();
+        onCompleteRef.current?.();
         if (disappearAfter > 0) {
           gsap.to(el, {
             [axis]: reverse ? distance : -distance,
@@ -81,7 +89,7 @@ const AnimatedContent: React.FC<AnimatedContentProps> = ({
             delay: disappearAfter,
             duration: disappearDuration,
             ease: disappearEase,
-            onComplete: () => onDisappearanceComplete?.()
+            onComplete: () => onDisappearanceCompleteRef.current?.()
           });
         }
       }
@@ -121,9 +129,9 @@ const AnimatedContent: React.FC<AnimatedContentProps> = ({
     delay,
     disappearAfter,
     disappearDuration,
-    disappearEase,
-    onComplete,
-    onDisappearanceComplete
+    disappearEase
+    // onComplete / onDisappearanceComplete deliberately omitted — they are
+    // read through refs above, so their identity must not retrigger this.
   ]);
 
   return (

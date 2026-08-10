@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 
 import { createShift } from "./actions";
+import { localDateKey } from "@/lib/attendance-series";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,8 +30,10 @@ import {
 type Employee = { id: string; full_name: string; site_id: string | null };
 type Site = { id: string; name: string };
 
+/** `toISOString()` is UTC, so before 03:00 in Nairobi this defaulted the
+ *  date picker to yesterday. */
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey(new Date());
 }
 
 export function AddShiftDialog({

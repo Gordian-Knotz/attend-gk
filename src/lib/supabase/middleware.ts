@@ -1,16 +1,34 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PATHS = ["/admin", "/dashboard", "/onboarding"];
+const PROTECTED_PATHS = ["/admin", "/dashboard", "/onboarding", "/checkin", "/api"];
+
+/**
+ * Segment-aware prefix match. A plain `startsWith("/admin")` also matches
+ * `/admin-preview`, so a route added later under a similar name would be
+ * silently unprotected.
+ */
+function isProtectedPath(pathname: string) {
+  return PROTECTED_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
+}
 
 export async function updateSession(request: NextRequest) {
-  // Supabase isn't configured yet in this environment — pass everything
-  // through rather than throwing on every request. Remove this guard once
-  // .env.local has real values (see README).
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
+    // Fails CLOSED in production. This used to pass every request through,
+    // which meant a single missing or misspelled environment variable on a
+    // deploy silently turned /admin into a public page — the auth layer
+    // disabling itself exactly when it is most needed. Locally it still
+    // passes through so the marketing page runs without Supabase.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Supabase environment variables are missing; refusing to serve requests unauthenticated."
+      );
+    }
     return NextResponse.next({ request });
   }
 
@@ -46,9 +64,7 @@ export async function updateSession(request: NextRequest) {
 
   // Section 06: "middleware.ts guarding every /admin/* and /api/* route
   // server-side rather than relying on UI-only checks."
-  const isProtected = PROTECTED_PATHS.some((p) =>
-    request.nextUrl.pathname.startsWith(p)
-  );
+  const isProtected = isProtectedPath(request.nextUrl.pathname);
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone();

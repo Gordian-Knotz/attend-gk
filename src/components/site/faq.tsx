@@ -23,7 +23,7 @@ const FAQS = [
   ],
   [
     "What devices can my team use to clock in?",
-    "A phone browser or the mobile app, a shared kiosk with QR scan, or the fingerprint and face terminals you already run on site.",
+    "A phone browser with GPS, or a shared kiosk with QR scan. Native mobile apps and integration with fingerprint and face terminals are on the roadmap, not available today.",
   ],
   [
     "Can staff request shift swaps?",

@@ -17,18 +17,50 @@ import {
 
 const TEAM_SIZES = ["1–10", "11–50", "51–200", "200+"];
 
+const CONTACT_ADDRESS = "hello@pac.africa";
+
 export function ContactForm() {
   const [status, setStatus] = React.useState<"idle" | "submitting" | "sent">(
     "idle"
   );
 
-  // Not wired to a backend yet — see README "Next steps". Once Supabase is
-  // in place this should insert into a `pilot_requests` table or POST to a
-  // route handler that forwards to email/CRM.
+  /**
+   * Hands the request to the visitor's mail client.
+   *
+   * This used to `setTimeout(600)` and then render "Request received —
+   * we'll be in touch within one business day". Nothing was sent anywhere.
+   * Every pilot enquiry went into the void while the sender believed it had
+   * arrived, which is worse than having no form at all.
+   *
+   * mailto is the honest option that needs no backend: the message really
+   * does leave, and the visitor can see that it did. Replace this with a
+   * route handler once there is somewhere to put the leads.
+   */
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("submitting");
-    window.setTimeout(() => setStatus("sent"), 600);
+
+    const form = new FormData(e.currentTarget);
+    const value = (key: string) => String(form.get(key) ?? "").trim();
+
+    const body = [
+      `Name: ${value("fullName")}`,
+      `Work email: ${value("workEmail")}`,
+      `Company: ${value("company")}`,
+      `Phone: ${value("phone") || "—"}`,
+      `Team size: ${value("teamSize") || "—"}`,
+      "",
+      "What they're trying to solve:",
+      value("message") || "—",
+    ].join("\n");
+
+    const href =
+      `mailto:${CONTACT_ADDRESS}` +
+      `?subject=${encodeURIComponent(`Pilot request — ${value("company")}`)}` +
+      `&body=${encodeURIComponent(body)}`;
+
+    window.location.href = href;
+    setStatus("sent");
   }
 
   if (status === "sent") {
@@ -37,10 +69,14 @@ export function ContactForm() {
         <span className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Check className="size-5" />
         </span>
-        <h3 className="font-serif text-2xl">Request received.</h3>
+        <h3 className="font-serif text-2xl">Your email app should be open.</h3>
         <p className="max-w-sm text-muted-foreground">
-          Thanks — we&apos;ll be in touch within one business day to set up
-          your pilot.
+          Send the draft and we&apos;ll be in touch within one business day. If
+          nothing opened, email us directly at{" "}
+          <a className="text-primary underline" href={`mailto:${CONTACT_ADDRESS}`}>
+            {CONTACT_ADDRESS}
+          </a>
+          .
         </p>
       </div>
     );

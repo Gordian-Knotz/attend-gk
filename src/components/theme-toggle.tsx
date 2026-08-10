@@ -13,7 +13,12 @@ export function ThemeToggle() {
   React.useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return <Button variant="outline" size="icon" aria-hidden />;
+    // Keeps its accessible name while the icon is still unknown. `aria-hidden`
+    // removed a focusable control from the tree entirely, which leaves a
+    // screen-reader user tabbing onto a button that announces nothing.
+    return (
+      <Button variant="outline" size="icon" disabled aria-label="Toggle theme" />
+    );
   }
 
   const isDark = resolvedTheme === "dark";

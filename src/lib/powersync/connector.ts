@@ -23,12 +23,19 @@ import { createClient } from "@/lib/supabase/client";
 
 /** Postgres error codes that will never succeed on retry. */
 const FATAL_PG_CODES = new Set([
+  "22P02", // invalid text representation — e.g. a malformed uuid
   "23502", // not-null violation
   "23503", // foreign key violation
   "23505", // unique violation
   "23514", // check constraint violation — includes the geofence trigger
   "42501", // insufficient privilege (RLS rejected the write)
 ]);
+
+function pgCode(error: unknown): string | undefined {
+  return typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code: unknown }).code)
+    : undefined;
+}
 
 export class SupabaseConnector implements PowerSyncBackendConnector {
   private supabase = createClient();
@@ -64,13 +71,10 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     const transaction = await database.getNextCrudTransaction();
     if (!transaction) return;
 
-    let lastEntry: (typeof transaction.crud)[number] | undefined;
+    for (const entry of transaction.crud) {
+      const table = this.supabase.from(entry.table);
 
-    try {
-      for (const entry of transaction.crud) {
-        lastEntry = entry;
-        const table = this.supabase.from(entry.table);
-
+      try {
         let result;
         switch (entry.op) {
           case UpdateType.PUT:
@@ -91,31 +95,33 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         }
 
         if (result.error) throw result.error;
+      } catch (error: unknown) {
+        const code = pgCode(error);
+
+        // Discard writes Postgres will reject every time — a check-in that
+        // failed the geofence trigger, for instance. Retrying forever would
+        // wedge the queue and block every later punch behind it.
+        //
+        // Only THIS entry is dropped. The previous version completed the
+        // whole transaction on the first fatal error, which silently
+        // discarded every remaining entry too — so one out-of-fence punch
+        // took all the valid punches queued behind it with it.
+        if (code && FATAL_PG_CODES.has(code)) {
+          console.error(
+            `[powersync] discarding permanently rejected ${entry.op} on ` +
+              `${entry.table} (${code})`,
+            error
+          );
+          continue;
+        }
+
+        // Anything else is treated as transient — rethrow so PowerSync backs
+        // off and retries the same transaction. `complete()` is deliberately
+        // not called, so nothing in this transaction is lost.
+        throw error;
       }
-
-      await transaction.complete();
-    } catch (error: unknown) {
-      const code =
-        typeof error === "object" && error !== null && "code" in error
-          ? String((error as { code: unknown }).code)
-          : undefined;
-
-      // Discard writes Postgres will reject every time — a check-in that
-      // failed the server-side geofence trigger, for instance. Retrying
-      // forever would wedge the queue and block every later punch behind it.
-      if (code && FATAL_PG_CODES.has(code)) {
-        console.error(
-          `[powersync] discarding permanently rejected ${lastEntry?.op} on ` +
-            `${lastEntry?.table} (${code})`,
-          error
-        );
-        await transaction.complete();
-        return;
-      }
-
-      // Anything else is treated as transient — rethrow so PowerSync backs
-      // off and retries the same transaction.
-      throw error;
     }
+
+    await transaction.complete();
   }
 }

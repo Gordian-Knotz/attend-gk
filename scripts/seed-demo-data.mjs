@@ -66,6 +66,14 @@ function slugifyEmail(name, i) {
   );
 }
 
+/** `YYYY-MM-DD` from the local calendar date. Mirrors localDateKey() in
+ *  src/lib/attendance-series.ts; duplicated because this is a plain .mjs
+ *  script with no TypeScript build step. */
+function localDateKey(d) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function jitter(value, meters) {
   // ~1 degree lat ≈ 111,000m; good enough jitter for demo GPS points
   return value + (Math.random() - 0.5) * (meters / 111000);
@@ -152,13 +160,31 @@ async function main() {
   }
 
   console.log("Creating demo staff accounts…");
+
+  // Fetched once, paginated. This used to call listUsers() inside the loop
+  // — one full user listing per staff member — and read only the default
+  // first page, so past 50 users it stopped finding existing accounts and
+  // tried to recreate them on every run.
+  const existingUsers = new Map();
+  for (let page = 1; ; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+    if (error) throw error;
+    const batch = data?.users ?? [];
+    for (const u of batch) {
+      if (u.email) existingUsers.set(u.email.toLowerCase(), u);
+    }
+    if (batch.length < 200) break;
+  }
+
   const employees = [];
   for (let i = 0; i < STAFF.length; i++) {
     const person = STAFF[i];
     const email = slugifyEmail(person.name, i);
 
-    const { data: userList } = await supabase.auth.admin.listUsers();
-    let authUser = userList?.users.find((u) => u.email === email);
+    let authUser = existingUsers.get(email.toLowerCase());
 
     if (!authUser) {
       const { data: created, error } = await supabase.auth.admin.createUser({
@@ -217,7 +243,11 @@ async function main() {
       if (outcome === "absent") continue;
 
       if (outcome === "on_leave") {
-        const iso = date.toISOString().slice(0, 10);
+        // Local date parts, not toISOString(): `date` is local midnight, so
+        // in any zone ahead of UTC the ISO slice is the *previous* day — and
+        // the leave row then wouldn't line up with the attendance generated
+        // for the same iteration.
+        const iso = localDateKey(date);
         leaveRequests.push({
           employee_id: emp.id,
           org_id: org.id,
@@ -229,9 +259,14 @@ async function main() {
         continue;
       }
 
-      const checkInHour = outcome === "late" ? 7 : 6;
-      const checkInMinuteSpread = outcome === "late" ? 45 : 60; // late: 7:00-7:45, present: 6:00-7:00-ish window before 7
-      const checkIn = randomTimeOn(date, checkInHour, checkInMinuteSpread);
+      // classifyCheckIn's cutoff is 07:15, so a "late" punch generated in
+      // the 07:00–07:45 window landed before the cutoff about a third of
+      // the time and rendered as present — making the seeded data disagree
+      // with its own labels. Late now starts at 07:16.
+      const checkIn =
+        outcome === "late"
+          ? new Date(randomTimeOn(date, 7, 44).getTime() + 16 * 60 * 1000)
+          : randomTimeOn(date, 6, 60);
       const checkOut = randomTimeOn(date, 17, 30);
 
       const lat = jitter(site.lat, 40);

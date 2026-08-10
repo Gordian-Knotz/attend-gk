@@ -3,88 +3,30 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { haversineMeters } from "@/lib/geo";
-
-type RecordAttendanceInput = {
-  eventType: "check_in" | "check_out";
-  /** Client-authoritative timestamp (ISO string) — per Section 04, trusted
-   *  over server-arrival time for ordering, since offline-queued events
-   *  can land long after they actually happened. */
-  occurredAt: string;
-  lat: number;
-  lng: number;
-  source?: "mobile" | "kiosk_qr";
-};
+import {
+  recordAttendanceFor,
+  type RecordAttendanceInput,
+} from "@/lib/record-attendance";
 
 export async function recordAttendance(input: RecordAttendanceInput) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: "Not signed in." };
-  }
-
-  const { data: employee, error: employeeError } = await supabase
-    .from("employees")
-    .select("id, org_id, site_id")
-    .eq("id", user.id)
-    .single();
-
-  if (employeeError || !employee) {
-    return {
-      error: "Your account isn't linked to an organization yet — ask your admin to add you.",
-    };
-  }
-
-  let distanceM: number | null = null;
-
-  // Server-side geofence re-validation — client-side validation is only
-  // for instant UX feedback; this is the check that's actually trusted,
-  // per Section 09's mitigation for GPS spoofing / buddy punching.
-  if (employee.site_id) {
-    const { data: site } = await supabase
-      .from("sites")
-      .select("geofence_lat, geofence_lng, geofence_radius_m")
-      .eq("id", employee.site_id)
-      .single();
-
-    if (site) {
-      distanceM = haversineMeters(
-        site.geofence_lat,
-        site.geofence_lng,
-        input.lat,
-        input.lng
-      );
-
-      if (distanceM > site.geofence_radius_m) {
-        return {
-          error: `You're ${Math.round(distanceM)}m from the site — outside the ${site.geofence_radius_m}m geofence. Move closer and try again.`,
-        };
-      }
-    }
-  }
-
-  const { error: insertError } = await supabase.from("attendance_events").insert({
-    employee_id: employee.id,
-    org_id: employee.org_id,
-    site_id: employee.site_id,
-    source: input.source ?? "mobile",
-    event_type: input.eventType,
-    occurred_at: input.occurredAt,
-    gps_lat: input.lat,
-    gps_lng: input.lng,
-    distance_m: distanceM,
-  });
-
-  if (insertError) {
-    return { error: insertError.message };
-  }
+  const result = await recordAttendanceFor(input);
+  if (result.error) return result;
 
   revalidatePath("/dashboard");
-  return { success: true as const };
+  return result;
+}
+
+/** Kept in sync with `leave_requests_type_check` in migration 0008. */
+const LEAVE_TYPES = ["annual", "sick", "compassionate", "unpaid"] as const;
+
+/** `YYYY-MM-DD`, as produced by an `<input type="date">`. */
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidDate(value: string) {
+  if (!DATE_PATTERN.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  // Rejects 2026-02-31 and friends, which Date happily rolls over.
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
 }
 
 export async function requestLeave(input: {
@@ -112,7 +54,18 @@ export async function requestLeave(input: {
     return { error: "Your account isn't linked to an organization yet." };
   }
 
-  if (new Date(input.endDate) < new Date(input.startDate)) {
+  if (!LEAVE_TYPES.includes(input.leaveType as (typeof LEAVE_TYPES)[number])) {
+    return { error: "Choose a valid leave type." };
+  }
+
+  // The previous `new Date(end) < new Date(start)` comparison silently
+  // passed when either value was unparseable, because every comparison with
+  // an Invalid Date is false.
+  if (!isValidDate(input.startDate) || !isValidDate(input.endDate)) {
+    return { error: "Enter valid start and end dates." };
+  }
+
+  if (input.endDate < input.startDate) {
     return { error: "End date can't be before the start date." };
   }
 
@@ -122,6 +75,8 @@ export async function requestLeave(input: {
     leave_type: input.leaveType,
     start_date: input.startDate,
     end_date: input.endDate,
+    // Enforced by RLS as of 0008 too: a client that posts 'approved'
+    // straight to PostgREST is now rejected rather than self-approving.
     status: "pending",
   });
 

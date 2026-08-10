@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, CalendarPlus } from "lucide-react";
 
 import { requestLeave } from "./actions";
+import { localDateKey } from "@/lib/attendance-series";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,8 +29,10 @@ import {
 
 const LEAVE_TYPES = ["annual", "sick", "compassionate", "unpaid"] as const;
 
+/** `toISOString()` is UTC, so before 03:00 in Nairobi the date input
+ *  defaulted to yesterday. Shared helper keeps it on the org calendar. */
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey(new Date());
 }
 
 export function LeaveRequestDialog() {
@@ -39,31 +42,48 @@ export function LeaveRequestDialog() {
   const [error, setError] = React.useState<string | null>(null);
   const [leaveType, setLeaveType] = React.useState<string>("annual");
 
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    // Otherwise last attempt's error is still on screen when the dialog is
+    // reopened, attached to fields the user hasn't filled in yet.
+    if (!next) setError(null);
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const form = new FormData(e.currentTarget);
-    const result = await requestLeave({
-      leaveType,
-      startDate: String(form.get("startDate")),
-      endDate: String(form.get("endDate")),
-    });
+    try {
+      const form = new FormData(e.currentTarget);
+      const startDate = String(form.get("startDate"));
+      const endDate = String(form.get("endDate"));
 
-    setLoading(false);
+      // Checked here as well as server-side, so the user finds out before
+      // a round trip rather than after.
+      if (endDate < startDate) {
+        setError("End date can't be before the start date.");
+        return;
+      }
 
-    if (result?.error) {
-      setError(result.error);
-      return;
+      const result = await requestLeave({ leaveType, startDate, endDate });
+
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+
+      setOpen(false);
+      router.refresh();
+    } catch {
+      setError("Couldn't submit that request. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setOpen(false);
-    router.refresh();
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           <CalendarPlus /> Request leave

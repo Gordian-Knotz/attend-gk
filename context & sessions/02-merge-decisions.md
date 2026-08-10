@@ -10,9 +10,11 @@ became the trunk. v1's wins were **rebuilt** in v2, not copied.
 Three hard reasons nothing could be copied verbatim:
 
 1. **Runtime incompatibility.** v1's `lib/supabase/server.ts` calls
-   `cookies()` synchronously. On Next 15 that throws. Every v1 server
-   component that touches Supabase — all three dashboards, the dashboard
-   router — inherits the problem.
+   `cookies()` synchronously. Next 15 requires `await cookies()`: the
+   synchronous form warns through a compatibility shim and hard-fails under
+   `cacheComponents`. Every v1 server component that touches Supabase — all
+   three dashboards, the dashboard router — needs that migration.
+   *(Corrected 10 Aug 2026: this previously said "throws".)*
 2. **Data model incompatibility.** v1 reads `profiles` and
    `attendance_records`; v2 has `employees` and `attendance_events`. Not a
    rename — a different shape (see [04](04-database-and-rls.md)).

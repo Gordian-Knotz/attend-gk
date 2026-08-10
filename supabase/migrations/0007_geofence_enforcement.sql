@@ -11,9 +11,18 @@
 -- PowerSync writes don't go through that server action. Its upload path is
 -- local SQLite → uploadData() → PostgREST, so the check would simply be
 -- absent for any offline-queued punch — which is most of them. Putting the
--- rule in a trigger closes that hole and, usefully, makes it apply to every
--- write path at once: the server action, PowerSync, the future React
--- Native app, and the biometric webhook bridge when it's built.
+-- rule in a trigger applies it to every write path at once: the server
+-- action, PowerSync, the future React Native app, and the biometric webhook
+-- bridge when it's built.
+--
+-- INCOMPLETE ON ITS OWN — see 0008. The trigger below is correct, but
+-- 0001's insert policy constrains only `employee_id`, leaving `source`,
+-- `site_id` and `org_id` client-supplied and unchecked. A client can
+-- therefore pick the exempt branches itself, by sending
+-- source 'biometric'/'manual' or a null site_id, and skip the geofence
+-- entirely. 0008_attendance_insert_integrity.sql constrains those three
+-- fields and turns the null-site branch into a rejection. Run 0007 and 0008
+-- together: 0007 alone does NOT enforce the geofence.
 --
 -- The server action's own check is kept. It's now a fast-feedback
 -- duplicate rather than the enforcement point — it can return a friendly

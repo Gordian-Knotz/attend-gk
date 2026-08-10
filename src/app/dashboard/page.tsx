@@ -8,6 +8,7 @@ import { LeaveRequestDialog } from "./leave-request-dialog";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Reveal } from "@/components/motion/reveal";
+import { DISPLAY_LOCALE, ORG_TIME_ZONE, formatTime } from "@/lib/timezone";
 
 const LEAVE_STATUS_VARIANT = {
   pending: "proposed",
@@ -68,7 +69,7 @@ export default async function DashboardPage() {
   const weekAgo = new Date(now);
   weekAgo.setDate(weekAgo.getDate() - 7);
 
-  const [{ data: lastEvent }, { data: upcomingShifts }, { data: recentEvents }, { data: leaveRequests }] =
+  const [lastEventRes, upcomingShiftsRes, recentEventsRes, leaveRequestsRes] =
     await Promise.all([
       supabase
         .from("attendance_events")
@@ -99,11 +100,25 @@ export default async function DashboardPage() {
         .limit(5),
     ]);
 
+  const { data: lastEvent } = lastEventRes;
+  const { data: upcomingShifts } = upcomingShiftsRes;
+  const { data: recentEvents } = recentEventsRes;
+  const { data: leaveRequests } = leaveRequestsRes;
+
+  // Each section reports its own failure. Rendering "No shifts scheduled in
+  // the next 7 days" when the shifts query actually errored tells someone
+  // they have nothing on — which, for a shift worker, is the one wrong
+  // answer that has consequences.
+  const shiftsFailed = Boolean(upcomingShiftsRes.error);
+  const eventsFailed = Boolean(recentEventsRes.error);
+  const leaveFailed = Boolean(leaveRequestsRes.error);
+
   const firstName = employee.full_name.split(" ")[0];
-  const today = now.toLocaleDateString(undefined, {
+  const today = now.toLocaleDateString(DISPLAY_LOCALE, {
     weekday: "long",
     month: "long",
     day: "numeric",
+    timeZone: ORG_TIME_ZONE,
   });
 
   return (
@@ -145,10 +160,17 @@ export default async function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="flex flex-col gap-1">
-              {(!upcomingShifts || upcomingShifts.length === 0) && (
-                <p className="py-4 text-center text-sm text-muted-foreground">
-                  No shifts scheduled in the next 7 days.
+              {shiftsFailed ? (
+                <p className="py-4 text-center text-sm text-destructive">
+                  Couldn&apos;t load your shifts — reload before assuming
+                  you&apos;re not rostered.
                 </p>
+              ) : (
+                (!upcomingShifts || upcomingShifts.length === 0) && (
+                  <p className="py-4 text-center text-sm text-muted-foreground">
+                    No shifts scheduled in the next 7 days.
+                  </p>
+                )
               )}
               {upcomingShifts?.map((shift) => (
                 <div
@@ -156,16 +178,17 @@ export default async function DashboardPage() {
                   className="flex items-center justify-between border-b border-border py-2.5 text-sm last:border-0"
                 >
                   <span className="font-medium">
-                    {new Date(shift.start_at).toLocaleDateString(undefined, {
+                    {new Date(shift.start_at).toLocaleDateString(DISPLAY_LOCALE, {
                       weekday: "short",
                       month: "short",
                       day: "numeric",
+                      timeZone: ORG_TIME_ZONE,
                     })}
                   </span>
                   <span className="font-mono text-xs text-muted-foreground">
-                    {new Date(shift.start_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {formatTime(shift.start_at)}
                     {" – "}
-                    {new Date(shift.end_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {formatTime(shift.end_at)}
                   </span>
                 </div>
               ))}
@@ -180,10 +203,16 @@ export default async function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="flex flex-col gap-1">
-              {(!recentEvents || recentEvents.length === 0) && (
-                <p className="py-4 text-center text-sm text-muted-foreground">
-                  No check-ins in the last 7 days yet.
+              {eventsFailed ? (
+                <p className="py-4 text-center text-sm text-destructive">
+                  Couldn&apos;t load your recent check-ins.
                 </p>
+              ) : (
+                (!recentEvents || recentEvents.length === 0) && (
+                  <p className="py-4 text-center text-sm text-muted-foreground">
+                    No check-ins in the last 7 days yet.
+                  </p>
+                )
               )}
               {recentEvents?.map((ev) => (
                 <div
@@ -191,10 +220,11 @@ export default async function DashboardPage() {
                   className="flex items-center justify-between border-b border-border py-2.5 text-sm last:border-0"
                 >
                   <span>
-                    {new Date(ev.occurred_at).toLocaleDateString(undefined, {
+                    {new Date(ev.occurred_at).toLocaleDateString(DISPLAY_LOCALE, {
                       weekday: "short",
                       month: "short",
                       day: "numeric",
+                      timeZone: ORG_TIME_ZONE,
                     })}
                   </span>
                   <span className="flex items-center gap-2">
@@ -202,7 +232,7 @@ export default async function DashboardPage() {
                       {ev.event_type === "check_in" ? "In" : "Out"}
                     </Badge>
                     <span className="font-mono text-xs text-muted-foreground">
-                      {new Date(ev.occurred_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {formatTime(ev.occurred_at)}
                     </span>
                   </span>
                 </div>
@@ -222,10 +252,16 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="flex flex-col gap-1">
-            {(!leaveRequests || leaveRequests.length === 0) && (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                No leave requests yet.
+            {leaveFailed ? (
+              <p className="py-4 text-center text-sm text-destructive">
+                Couldn&apos;t load your leave requests.
               </p>
+            ) : (
+              (!leaveRequests || leaveRequests.length === 0) && (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  No leave requests yet.
+                </p>
+              )
             )}
             {leaveRequests?.map((lr) => (
               <div

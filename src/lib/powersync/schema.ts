@@ -51,6 +51,20 @@ const shifts = new Table(
  * never edited or deleted from the device. It also means PowerSync doesn't
  * keep local copies after upload, so a shared kiosk browser isn't
  * accumulating other people's history on disk.
+ *
+ * TWO OFFLINE QUEUES EXIST RIGHT NOW, DELIBERATELY. This table is the
+ * intended one; the live check-in path still uses the `attendpac:offline-queue`
+ * localStorage array in `dashboard/checkin-widget.tsx` and
+ * `checkin/checkin-client.tsx`. They are not wired together, and nothing
+ * currently writes here — `NEXT_PUBLIC_POWERSYNC_URL` is unset, so the
+ * PowerSync database never opens.
+ *
+ * That is the sequencing described in doc 08, not an oversight: the
+ * localStorage queue is replaced by this table in step 4, after the
+ * instance is provisioned. Until then the two must not both be active,
+ * because they would each hold a partial, independently-retried copy of the
+ * same ledger, and a punch could upload twice. Whoever does that rewrite:
+ * delete the localStorage path in the same change, do not run both.
  */
 const attendance_events = new Table(
   {

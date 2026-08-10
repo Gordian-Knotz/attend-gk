@@ -5,8 +5,10 @@ behind the current state of this repo survives past the session that
 produced it. The root `README.md` tells you how to run the thing; these
 files tell you why it looks the way it does.
 
-Sessions: **6 August 2026** (docs 01–08) and **10 August 2026** (docs 09–10,
-plus corrections marked inline in 03, 04, 06, 07 and 08).
+Sessions: **6 August 2026** (docs 01–08) and **10 August 2026** — first the
+v3 port (docs 09–10, plus corrections marked inline in 03, 04, 06, 07 and
+08), then a security audit and hardening pass (doc 11, plus corrections in
+01, 02, 06 and 07).
 
 | File | What's in it |
 |---|---|
@@ -20,48 +22,67 @@ plus corrections marked inline in 03, 04, 06, 07 and 08).
 | [08-powersync-offline.md](08-powersync-offline.md) | Offline sync: scope, the geofence hole PowerSync's write path opened, and what's left to go live |
 | [09-v3-hero-and-bento.md](09-v3-hero-and-bento.md) | What attend-v3 is, the centred Threads hero, and the bento rewrite on `/admin` — with the browser checks still owed |
 | [10-live-db-bringup.md](10-live-db-bringup.md) | The ordered plan for running 0005–0008 against a real Postgres, with fixtures and expected values for every check |
+| [11-security-hardening.md](11-security-hardening.md) | The CodeRabbit audit: how to run it on a whole codebase, the five criticals, the self-approved-leave hole it missed, and migration 0008 |
+| [coderabbit-findings-10aug.md](coderabbit-findings-10aug.md) | Raw output — all 90 findings by severity |
 
-## Where we left off — 10 Aug 2026
+## Where we left off — 10 Aug 2026 (security hardening)
 
 `tsc --noEmit`, `npm run lint` and `npm run build` all green (18 routes,
-exit 0), and the new UI has been driven in a browser in both themes at three
-widths. Committed, not pushed.
+exit 0). On branch **`harden-security-audit`**, cut from `main` at
+`9fa2a6f`. Not merged, not pushed.
+
+> Note: the entry below previously said "committed, not pushed" of the v3
+> hero work. `main` *is* pushed — `github.com/Gordian-Knotz/attend-gk`,
+> 0 ahead / 0 behind. Corrected.
 
 ### What changed this session
 
-1. **Verified the 6 Aug notes against the repo.** Four corrections, all
-   marked inline in the affected docs. The load-bearing one: `.env.local`
-   *does* exist, so the reason given for "nothing has run against live
-   Supabase" was wrong even though the conclusion held.
-2. **Found a real security bug**: migration 0007's geofence trigger is
-   bypassable from a client, because 0001's insert policy constrains only
-   `employee_id`. Details and fix in [04](04-database-and-rls.md).
-3. **Ported the hero and a bento layer from `attend-v3`**, then drove both in
-   a browser and fixed the two defects that turned up — see
-   [09](09-v3-hero-and-bento.md).
-4. **Fixed `npm run lint`**, which was reporting ~1,450 problems in the
-   generated `public/@powersync/` bundles. `eslint.config.mjs` now ignores
-   them; `next lint` used to skip `public/` implicitly and the bare CLI
-   doesn't.
+A full-codebase CodeRabbit review, then **88 of its 90 findings applied**,
+plus one hole it missed. Full write-up in
+[11](11-security-hardening.md); raw findings in
+[coderabbit-findings-10aug.md](coderabbit-findings-10aug.md).
+
+The five things most worth knowing:
+
+1. **`0008_attendance_insert_integrity.sql` is written.** It closes the
+   0007 bypass and four more RLS holes. Re-runnable by design. **Still
+   unexecuted.**
+2. **Staff could approve their own leave** — CodeRabbit missed this one.
+   `leave: self insert` checked only `employee_id`, and `status` had no
+   constraint, so posting `status: 'approved'` moved you out of the absent
+   count. A second fraud path that never touches the geofence.
+3. **Any employee could read biometric webhook secrets**, which authenticate
+   the geofence-exempt `biometric` source. Now admin-only, and the devices
+   page no longer selects the column.
+4. **Everything time-related ran on the server's timezone.** New
+   `src/lib/timezone.ts` makes `Africa/Nairobi` (env-overridable) the single
+   source for cutoffs, bucketing and display.
+5. **Failed database queries rendered as confident empty states** — "No
+   staff yet", all KPIs zero, and an exportable CSV of zeros.
 
 ### Blocked on you, in order
 
-1. **Write and run `0008_attendance_insert_integrity.sql`** before anything
-   else touching attendance. Until it exists the geofence is not enforced,
-   so **leave `NEXT_PUBLIC_POWERSYNC_URL` unset** —
-   [04](04-database-and-rls.md) has the sketch.
+1. **Run `0008_attendance_insert_integrity.sql`** (with 0007 — 0007 alone
+   does not enforce the geofence). Until then **leave
+   `NEXT_PUBLIC_POWERSYNC_URL` unset**. The RLS changes are the
+   highest-risk unexecuted thing in the repo: a policy that is too tight
+   breaks the app at runtime, not at build.
 2. **Add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`.** Referenced in code,
    absent from the file. Blocks the `/admin/staff` invite and
    `scripts/seed-demo-data.mjs`.
 3. **Work through [10](10-live-db-bringup.md)** — migrations 0005–0008 and
    seed against a real project, then the three computations most likely to
    be subtly wrong (day bucketing, check-in pairing, absent arithmetic).
-4. `npm install-scripts approve @journeyapps/wa-sqlite` — still blocked, and
+   Add the 0008 cases from [11](11-security-hardening.md) to Phase 4.
+4. **Browser-check this session's changes.** Nothing here has been looked
+   at in a browser. Both previous sessions shipped green builds that a
+   browser pass then found real defects in.
+5. `npm install-scripts approve @journeyapps/wa-sqlite` — still blocked, and
    re-confirmed precisely on 10 Aug: `libpowersync.wasm` and
    `libpowersync-async.wasm` are genuinely absent from its `dist/`. It
    executes a package script and fetches a binary, which is why it hasn't
    been done unasked.
-5. **Provision PowerSync** — Cloud instance, `supabase/powersync-setup.sql`
+6. **Provision PowerSync** — Cloud instance, `supabase/powersync-setup.sql`
    on a **direct** Postgres connection (DDL and `CREATE ROLE` can't go
    through PostgREST), deploy `powersync/sync-rules.yaml`, then the env var
    from item 1's caveat.
@@ -92,6 +113,10 @@ both checked at 390 and 320.
 plus `/dashboard`, `/checkin` and `/onboarding`. All need an authenticated
 session, so they depend on item 3 above.
 
+> **Scope note, security pass.** The above describes the *v3 hero* browser
+> pass only. Nothing from the hardening session has been in a browser —
+> see [11](11-security-hardening.md) → Verification.
+
 ### Open decisions
 
 **`RevealHeading` renders `opacity: 0` into the SSR HTML**, so section
@@ -114,7 +139,8 @@ Generate database types (`supabase gen types`) — the Supabase client is
 still untyped. The stray `C:\Users\PAC\package-lock.json` that makes every
 build warn about workspace root. `next lint` is deprecated in Next 16 (the
 `lint` script already calls `eslint` directly, so this is mostly done).
-`setup-admin.sql` is hardcoded to `imranissa0@gmail.com`.
+`setup-admin.sql` now takes the bootstrap super-admin's address as a
+variable you edit at the top; it used to hardcode a personal one.
 
 ## The short version
 

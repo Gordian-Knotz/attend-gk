@@ -24,9 +24,15 @@ export function StatTiles({
       {tiles.map((tile, i) => (
         <div
           key={tile.label}
+          // At the 2-column mobile stage `i > 0` put a left border on
+          // tiles 2 and 3 — i.e. on the first tile of the second row, where
+          // there is nothing to its left — and no rule between the rows.
           className={cn(
             "px-5 py-4 first:pl-0",
-            i > 0 && "border-l border-border"
+            i % 2 === 1 && "border-l border-border",
+            i >= 2 && "border-t border-border",
+            i > 0 && "md:border-l md:border-border",
+            i >= 2 && "md:border-t-0"
           )}
         >
           <div className="font-serif text-4xl leading-none tabular-nums">

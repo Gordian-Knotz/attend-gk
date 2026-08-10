@@ -16,13 +16,34 @@
 -- by the app's own RLS, which still applies because uploadData() goes back
 -- through PostgREST as the signed-in user.
 --
--- Replace the password before running, and store it in your password
--- manager — the PowerSync dashboard needs it once, at connection setup.
+-- Created NOLOGIN on purpose. A BYPASSRLS role that can log in with a
+-- password committed to the repo is a backdoor into every table, so the
+-- role cannot authenticate at all until you run the ALTER below with a
+-- password you generate yourself. Do not commit that value — put it
+-- straight into your password manager; the PowerSync dashboard needs it
+-- once, at connection setup.
 
-CREATE ROLE powersync_role WITH REPLICATION BYPASSRLS LOGIN PASSWORD 'CHANGE_ME_BEFORE_RUNNING';
+CREATE ROLE powersync_role WITH REPLICATION BYPASSRLS NOLOGIN;
 
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO powersync_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO powersync_role;
+-- Run this separately, substituting a generated password:
+--   ALTER ROLE powersync_role WITH LOGIN PASSWORD '<generated-password>';
+
+-- Grants are table-scoped to match the publication below, NOT
+-- `ON ALL TABLES`. The publication already excludes biometric_devices
+-- (webhook secrets), payroll_exports and notifications; granting SELECT on
+-- everything would have handed them over anyway to a role that also
+-- bypasses RLS.
+GRANT USAGE ON SCHEMA public TO powersync_role;
+GRANT SELECT ON
+  public.employees,
+  public.sites,
+  public.shifts,
+  public.attendance_events
+TO powersync_role;
+
+-- Deliberately no ALTER DEFAULT PRIVILEGES: a table added later must be
+-- granted here explicitly, next to the publication change below, so the
+-- two lists can't silently drift apart.
 
 -- ── 2. Publication ───────────────────────────────────────────────────────
 --

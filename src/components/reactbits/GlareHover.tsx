@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useRef } from 'react';
 
 interface GlareHoverProps {
@@ -55,6 +57,11 @@ const GlareHover: React.FC<GlareHoverProps> = ({
 
     el.style.transition = 'none';
     el.style.backgroundPosition = '-100% -100%, 0 0';
+    // Force a reflow so the reset is committed before the transition is
+    // re-enabled. Without it the browser coalesces all four writes into one
+    // style recalculation, the reset never lands, and the glare only plays
+    // on the first hover.
+    void el.offsetHeight;
     el.style.transition = `${transitionDuration}ms ease`;
     el.style.backgroundPosition = '100% 100%, 0 0';
   };

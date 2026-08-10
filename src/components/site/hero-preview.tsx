@@ -72,7 +72,11 @@ export function HeroPreview() {
           </div>
           <div className="flex items-center gap-1.5">
             <span className="relative flex size-2">
+              {/* animate-ping runs forever; the one indefinite animation on
+                the page is exactly what prefers-reduced-motion is for. */}
+            {!reduceMotion && (
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/70" />
+            )}
               <span className="relative inline-flex size-2 rounded-full bg-primary" />
             </span>
             <span className="font-label text-muted-foreground">Live</span>

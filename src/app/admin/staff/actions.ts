@@ -6,12 +6,50 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getEmployeeContext } from "@/lib/supabase/employee";
 
+/**
+ * Service-role client: bypasses RLS entirely. Everything it touches has to
+ * be checked in this file, because the database will not check it for us.
+ */
 function serviceClient() {
   return createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
+}
+
+const INVITABLE_ROLES = ["staff", "manager"] as const;
+type InvitableRole = (typeof INVITABLE_ROLES)[number];
+
+const MAX_NAME_LENGTH = 120;
+
+/** Deliberately permissive; Supabase Auth does the authoritative check. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type AdminUser = { id: string; email?: string | null };
+
+/**
+ * `listUsers()` returns one page (50 by default), so a straight `.find()`
+ * silently missed existing accounts once an org grew past that — and then
+ * tried to re-invite an address that already had a login.
+ */
+async function findAuthUserByEmail(
+  admin: ReturnType<typeof serviceClient>,
+  email: string
+): Promise<{ user: AdminUser | null; error: string | null }> {
+  const target = email.toLowerCase();
+  const perPage = 200;
+
+  for (let page = 1; ; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) return { user: null, error: error.message };
+
+    const users: AdminUser[] = data?.users ?? [];
+    const match = users.find((u) => u.email?.toLowerCase() === target);
+    if (match) return { user: match, error: null };
+
+    if (users.length < perPage) return { user: null, error: null };
+  }
 }
 
 export async function inviteStaff(input: {
@@ -32,16 +70,53 @@ export async function inviteStaff(input: {
     };
   }
 
+  // ── Input validation ──────────────────────────────────────────────────
+  // These values reach a service-role write, so the TypeScript signature
+  // is not a control: a server action is a public HTTP endpoint and the
+  // caller chooses the payload.
+  const email = input.email?.trim().toLowerCase() ?? "";
+  const fullName = input.fullName?.trim() ?? "";
+
+  if (!EMAIL_PATTERN.test(email)) {
+    return { error: "Enter a valid email address." };
+  }
+  if (!fullName) {
+    return { error: "Enter the person's full name." };
+  }
+  if (fullName.length > MAX_NAME_LENGTH) {
+    return { error: `Names must be under ${MAX_NAME_LENGTH} characters.` };
+  }
+  if (!INVITABLE_ROLES.includes(input.role as InvitableRole)) {
+    // Without this, the payload could ask for org_admin or super_admin.
+    return { error: "Staff can only be invited as staff or manager." };
+  }
+
   const admin = serviceClient();
 
-  const { data: userList, error: listError } = await admin.auth.admin.listUsers();
-  if (listError) return { error: listError.message };
+  // The site must belong to the inviter's own org. `siteId` was previously
+  // written straight through the service client, so an org admin could
+  // attach a new hire to another tenant's site.
+  if (input.siteId) {
+    const { data: site, error: siteError } = await admin
+      .from("sites")
+      .select("id")
+      .eq("id", input.siteId)
+      .eq("org_id", employee.orgId)
+      .maybeSingle();
 
-  let authUser = userList.users.find((u) => u.email === input.email);
+    if (siteError) return { error: siteError.message };
+    if (!site) return { error: "That site isn't part of your organization." };
+  }
+
+  const { user: existingAuthUser, error: lookupError } =
+    await findAuthUserByEmail(admin, email);
+  if (lookupError) return { error: lookupError };
+
+  let authUser: AdminUser | null = existingAuthUser;
 
   if (!authUser) {
-    const { data, error } = await admin.auth.admin.inviteUserByEmail(input.email, {
-      data: { full_name: input.fullName },
+    const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+      data: { full_name: fullName },
     });
     if (error) {
       return {
@@ -55,11 +130,25 @@ export async function inviteStaff(input: {
     return { error: "Something went wrong creating that account." };
   }
 
+  // An upsert on a primary key is an overwrite. Without this check, adding
+  // an address that already belongs to another tenant would move that
+  // person — and their attendance history — into this org.
+  const { data: existing, error: existingError } = await admin
+    .from("employees")
+    .select("org_id")
+    .eq("id", authUser.id)
+    .maybeSingle();
+
+  if (existingError) return { error: existingError.message };
+  if (existing && existing.org_id !== employee.orgId) {
+    return { error: "That account already belongs to another organization." };
+  }
+
   const { error: upsertError } = await admin.from("employees").upsert({
     id: authUser.id,
     org_id: employee.orgId,
     site_id: input.siteId,
-    full_name: input.fullName,
+    full_name: fullName,
     role: input.role,
   });
 

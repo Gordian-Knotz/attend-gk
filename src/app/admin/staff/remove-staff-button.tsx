@@ -20,17 +20,28 @@ export function RemoveStaffButton({
   async function handleClick() {
     if (!window.confirm(`Remove ${employeeName} from this organization?`)) return;
     setLoading(true);
-    const result = await removeStaff(employeeId);
-    setLoading(false);
-    if (result?.error) {
-      window.alert(result.error);
-      return;
+    try {
+      const result = await removeStaff(employeeId);
+      if (result?.error) {
+        window.alert(result.error);
+        return;
+      }
+      router.refresh();
+    } catch {
+      window.alert("Couldn't remove that person. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    router.refresh();
   }
 
   return (
-    <Button variant="ghost" size="icon" onClick={handleClick} disabled={loading}>
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label={`Remove ${employeeName}`}
+      onClick={handleClick}
+      disabled={loading}
+    >
       {loading ? <Loader2 className="animate-spin" /> : <UserMinus />}
     </Button>
   );

@@ -1,4 +1,11 @@
 import { classifyCheckIn } from "./attendance";
+import {
+  DISPLAY_LOCALE,
+  ORG_TIME_ZONE,
+  wallClockIn,
+  zonedDateKey,
+  zonedWallClockToUtc,
+} from "./timezone";
 
 export type TrendPoint = {
   label: string;
@@ -19,24 +26,44 @@ export type SeriesLeave = {
   end_date: string;
 };
 
-/** Local-midnight `YYYY-MM-DD`, so day bucketing matches what an admin in
- *  Nairobi sees on the wall clock rather than UTC. */
-export function localDateKey(d: Date): string {
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, "0"),
-    String(d.getDate()).padStart(2, "0"),
-  ].join("-");
+/**
+ * `YYYY-MM-DD` as read in the organization's timezone, so day bucketing
+ * matches what an admin in Nairobi sees on the wall clock.
+ *
+ * This used to use the *server's* local date. That is correct on a laptop
+ * in Nairobi and wrong on a host anywhere else — a punch at 01:30 local
+ * would fall into the previous day's bar on a UTC host, which is precisely
+ * the bug the original UTC-slicing version was written to fix.
+ */
+export function localDateKey(d: Date, timeZone: string = ORG_TIME_ZONE): string {
+  return zonedDateKey(d, timeZone);
 }
 
-/** The last `count` days ending today, oldest first, at local midnight. */
-export function recentDays(count: number, now = new Date()): Date[] {
+/** The last `count` days ending today, oldest first, each at midnight in
+ *  the organization's timezone. */
+export function recentDays(
+  count: number,
+  now = new Date(),
+  timeZone: string = ORG_TIME_ZONE
+): Date[] {
+  const [year, month, day] = zonedDateKey(now, timeZone).split("-").map(Number);
   const days: Date[] = [];
+
   for (let i = count - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - i);
-    days.push(d);
+    // Step back whole calendar days on a UTC probe, then re-anchor to
+    // midnight in the target zone. Stepping a Date directly would drift
+    // across a DST boundary.
+    const probe = new Date(Date.UTC(year, month - 1, day) - i * 86_400_000);
+    days.push(
+      zonedWallClockToUtc(
+        probe.getUTCFullYear(),
+        probe.getUTCMonth() + 1,
+        probe.getUTCDate(),
+        0,
+        0,
+        timeZone
+      )
+    );
   }
   return days;
 }
@@ -97,11 +124,15 @@ export function buildDailySeries({
       else present++;
     }
 
+    // Someone who was on approved leave but turned up and clocked in is
+    // counted once, as present. Counting them in both sets subtracted them
+    // from the roster twice and under-reported absences.
     const onLeave = new Set(
       leave
         .filter(
           (l) =>
             workforce.has(l.employee_id) &&
+            !checkIns.has(l.employee_id) &&
             l.start_date <= key &&
             l.end_date >= key
         )
@@ -110,13 +141,18 @@ export function buildDailySeries({
 
     // Don't brand today's roster absent before the cutoff has passed —
     // it would show a phantom spike every morning.
-    const settled = key !== todayKey || now.getHours() >= absentCutoffHour;
+    const settled =
+      key !== todayKey || wallClockIn(now).hour >= absentCutoffHour;
     const absent = settled
       ? Math.max(0, workforce.size - checkIns.size - onLeave)
       : 0;
 
     return {
-      label: day.toLocaleDateString([], { day: "numeric", month: "short" }),
+      label: day.toLocaleDateString(DISPLAY_LOCALE, {
+        day: "numeric",
+        month: "short",
+        timeZone: ORG_TIME_ZONE,
+      }),
       present,
       late,
       absent,

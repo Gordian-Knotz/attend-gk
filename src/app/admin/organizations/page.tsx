@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { createClient } from "@/lib/supabase/server";
+import { formatDate } from "@/lib/timezone";
 import { PageHeader } from "@/components/admin/page-header";
 import { Callout } from "@/components/callout";
 import { StatTiles } from "@/components/site/stat-tiles";
@@ -33,7 +34,7 @@ export default async function OrganizationsPage() {
 
   const supabase = await createClient();
 
-  const [{ data: orgs }, { data: employees }, { data: sites }] = await Promise.all([
+  const [orgsRes, employeesRes, sitesRes] = await Promise.all([
     supabase
       .from("organizations")
       .select("id, name, slug, plan_tier, billing_status, created_at")
@@ -41,6 +42,26 @@ export default async function OrganizationsPage() {
     supabase.from("employees").select("id, org_id, role"),
     supabase.from("sites").select("id, org_id"),
   ]);
+
+  // Site counts here are the actual test of migration 0005 — before it, a
+  // super_admin could write another org's sites but not read them, so the
+  // counts silently showed only their own. A failed query rendering as
+  // "0 sites" would look identical to that bug, which makes distinguishing
+  // the two worth the extra branch.
+  const loadError = orgsRes.error ?? employeesRes.error ?? sitesRes.error;
+
+  if (loadError) {
+    return (
+      <Callout variant="critical" label="Platform view unavailable">
+        The organization list couldn&apos;t be loaded. Reload the page —
+        don&apos;t read the absence of rows as an empty platform.
+      </Callout>
+    );
+  }
+
+  const { data: orgs } = orgsRes;
+  const { data: employees } = employeesRes;
+  const { data: sites } = sitesRes;
 
   // Counted in memory rather than with per-org count queries: the platform
   // has a handful of orgs, and this is one round trip instead of 2N.
@@ -134,7 +155,7 @@ export default async function OrganizationsPage() {
                         {org.sites}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs text-muted-foreground">
-                        {new Date(org.created_at).toLocaleDateString()}
+                        {formatDate(org.created_at)}
                       </TableCell>
                     </TableRow>
                   ))}

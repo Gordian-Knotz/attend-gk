@@ -131,14 +131,17 @@ export function IndustryTabs() {
           {INDUSTRIES.map((industry) => (
             <TabsTrigger
               key={industry.id}
-              id={industry.id}
               value={industry.id}
               // The shared Tabs primitive draws the active state as a static
               // bottom border. Suppressed here so a single shared underline
               // can slide between triggers instead of jumping.
               className="relative data-[state=active]:border-transparent"
             >
-              {industry.label}
+              {/* The hash anchor lives on this span, not on TabsTrigger.
+                  Setting `id` on the trigger overwrote the one Radix
+                  generates, breaking the aria-labelledby link from the
+                  panel back to its tab. */}
+              <span id={industry.id}>{industry.label}</span>
               {industry.id === active &&
                 (reduceMotion ? (
                   <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary" />

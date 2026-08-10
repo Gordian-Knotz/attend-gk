@@ -43,8 +43,15 @@ calls `cookies()` synchronously**:
 ```ts
 // attend-v1/lib/supabase/server.ts
 export function createClient() {
-  const cookieStore = cookies();   // sync — throws on Next 15
+  const cookieStore = cookies();   // sync — deprecated on Next 15
 ```
+
+> **Corrected 10 Aug 2026.** This said "throws on Next 15". Next 15 keeps a
+> synchronous-access shim that *warns* rather than throwing, and only hard-
+> fails under `cacheComponents`. So v1 required migrating to `await
+> cookies()` for full Next 15 compatibility; it did not fail instantly on
+> arrival. The merge conclusion is unaffected — the rewrite was needed
+> either way.
 
 v2's is `async` and awaits it. This single difference means no file in v1
 that touches Supabase on the server could be copied into v2 without a

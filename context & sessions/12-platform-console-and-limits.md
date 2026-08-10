@@ -83,6 +83,42 @@ That second one is a per-column rule and RLS operates on rows, so it is
 enforced by a `BEFORE UPDATE` trigger: org_admins may rename their
 organization, and nothing else. Everything commercial is super_admin only.
 
+### Found while writing the "how do I get super admin" instructions
+
+Answering that question surfaced a privilege escalation the audit missed.
+
+0003's `employees: admins manage roster` constrains *who* may write and
+*which organization's rows* they may write. It does not constrain the
+`role` column. So any `org_admin` could
+
+```
+PATCH /rest/v1/employees?id=eq.<themselves>   {"role": "super_admin"}
+```
+
+and take the platform — every tenant's attendance data, and, now that
+`/super` exists, the ability to change anyone's plan, mark them paid, or
+suspend them. It was a cross-tenant read hole before today; shipping the
+console turned it into a commercial one.
+
+Exactly the shape 0010 closed on `organizations`: a per-column rule, which
+RLS cannot express. Same remedy —
+`0011_employee_role_integrity.sql` adds a `BEFORE INSERT OR UPDATE` trigger
+that lets nobody but an existing `super_admin` grant, remove or move one,
+and blocks moving an employee between organizations at all.
+
+The bootstrap escape hatch is `auth.uid() is null` — the SQL editor, a
+migration, or the service role. That is deliberate and it is the only way
+the first super_admin can exist. It also means the trigger does not
+constrain `scripts/seed-demo-data.mjs` or the staff-invite action, both of
+which use the service role; the invite action validates `role` against
+`('staff','manager')` in application code instead.
+
+**Worth generalising:** this is now the third per-column rule in this schema
+that RLS silently could not enforce — `attendance_events` (0008),
+`organizations` (0010), `employees` (0011). When a policy grants write
+access to a table, ask separately which *columns* that write should be
+allowed to touch. RLS will not ask it for you.
+
 ### The honest limit on suspension
 
 `OrgSuspended` blocks the *rendered* surfaces — `/admin` and `/dashboard`.
@@ -388,6 +424,7 @@ database — **most of it has.**
 | 0008 | **not applied** | `attendance_events.client_event_id` absent; `employee_site_id()` absent |
 | 0009 | **not applied** | `contact_requests` 404 |
 | 0010 | **not applied** | `organizations.suspended_at` absent |
+| 0011 | **not applied** | written after the probe; closes the role-escalation hole above |
 
 RLS is working: anon sees zero rows on every table.
 

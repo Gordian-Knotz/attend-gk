@@ -120,6 +120,12 @@ Engineering delivery: Gordian Knotz Technovation.
      stops an `org_admin` changing their own plan, billing or suspension.
      Rewrites existing `billing_status` values before adding the
      constraint — read it before running it.
+   - `supabase/migrations/0011_employee_role_integrity.sql` — stops an
+     `org_admin` promoting themselves to `super_admin`. 0003's roster policy
+     constrains *who* may write and *which org's rows*, but not the `role`
+     column, so `PATCH /employees?id=eq.<self> {"role":"super_admin"}`
+     worked. Security-relevant; apply it before anyone but you has an
+     `org_admin` account.
 4. Run `supabase/seed.sql` — creates one demo org ("Alpha Pride Security"),
    one demo site ("Two Rivers Mall", Nairobi CBD coordinates), and two demo
    notices. Run it after *all* the migrations, not just 0001 — it inserts
@@ -129,6 +135,55 @@ Engineering delivery: Gordian Knotz Technovation.
    it links that account as `org_admin` of the demo org directly (skipping
    the auto-created empty org `/onboarding` would otherwise give you), so
    signing in immediately shows the fully populated dashboard.
+
+### Becoming a super admin
+
+`super_admin` is PAC's own role, not a tenant's. It sees every organization
+and it is the only role that can reach `/super` — the platform console where
+plan tier, billing status and suspension are set.
+
+There is no UI for granting it, deliberately: after migration 0011 the only
+way to mint one is a connection with no JWT, which means the Supabase SQL
+editor, a migration, or the service role. A signed-in `org_admin` cannot do
+it, including to themselves.
+
+**Bootstrap the first one:**
+
+1. Sign up normally at `/login?mode=sign-up`. This creates the `auth.users`
+   row and nothing else.
+2. Get an `employees` row. Either complete `/onboarding` (creates your own
+   org and makes you its `org_admin`), or run `supabase/setup-admin.sql`
+   after editing `v_admin_email` and `v_admin_name` at the top — that
+   attaches you to the seeded demo org instead.
+3. Promote yourself, in the **Supabase SQL editor**:
+
+   ```sql
+   update employees
+   set role = 'super_admin'
+   where id = (select id from auth.users where email = 'you@example.com');
+   ```
+
+4. Reload the app. No sign-out needed — the role is read from `employees` on
+   each request, not baked into the JWT. A "Platform" group appears at the
+   bottom of the admin sidebar with a link to `/super`.
+
+**Granting it to someone else afterwards:** as an existing `super_admin` you
+can run the same `update` through the app's own client, because the 0011
+trigger exempts callers who are already `super_admin`. In practice, use the
+SQL editor — it is auditable and there is no button for it.
+
+**Checking who has it:**
+
+```sql
+select e.full_name, u.email, o.name as org
+from employees e
+join auth.users u on u.id = e.id
+join organizations o on o.id = e.org_id
+where e.role = 'super_admin';
+```
+
+Keep that list short. A `super_admin` reads every tenant's attendance data
+and can suspend any of them.
 
 ### Populating a realistic demo
 

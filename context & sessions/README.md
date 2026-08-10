@@ -98,13 +98,20 @@ The five things most worth knowing:
 
 ### Blocked on you, in order
 
-1. **Run migrations 0008, 0009 and 0010.** 0007 is already applied and 0008
-   is not, so **the geofence is bypassable on the live project right now** —
-   a client can send `source: 'biometric'` and skip it. The exposure is
-   limited to a hand-crafted PostgREST call while `NEXT_PUBLIC_POWERSYNC_URL`
-   stays unset, so **keep it unset until 0008 is in**.
+1. **Run migrations 0008, 0009, 0010 and 0011.** Two of these are live
+   security holes on the current project, not hypotheticals:
 
-   All three are safe to run twice. 0008 is deliberately idempotent because
+   - 0007 is applied and 0008 is not, so **the geofence is bypassable right
+     now** — a client can send `source: 'biometric'` and skip it. Exposure
+     is limited to a hand-crafted PostgREST call while
+     `NEXT_PUBLIC_POWERSYNC_URL` stays unset, so **keep it unset until 0008
+     is in**.
+   - **Any `org_admin` can promote themselves to `super_admin`** by PATCHing
+     their own `employees` row — 0003's policy never constrained the `role`
+     column. 0011 closes it. Apply it before anyone but you holds an
+     `org_admin` account.
+
+   All four are safe to run twice. 0008 is deliberately idempotent because
    an earlier hand-written version of it is already applied — the committed
    file is a superset. 0008 and 0010 both rewrite existing rows before
    adding constraints; read them before running.

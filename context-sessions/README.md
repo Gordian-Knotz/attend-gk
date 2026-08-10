@@ -38,7 +38,9 @@ then the Railway deploy, the Activ-HR rename and four pieces of product work
 ## Where we left off — 10 Aug 2026 (deployed, renamed)
 
 `tsc`, `lint` and `build` green (**19 routes + `ƒ Middleware 92.9 kB`**). On
-branch **`harden-security-audit`**, cut from `main` at `9fa2a6f`.
+branch **`harden-security-audit`**, cut from `main` at `9fa2a6f`, **pushed to
+`origin` and 7 commits ahead of `main`. Not merged** — the unreviewed UI noted
+below is the reason to hold.
 
 **The app is deployed.** Railway project `activ-hr`, service `web`, one
 container, live at `web-production-c7d3e.up.railway.app`. Deployed from the

@@ -16,6 +16,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Reveal } from "@/components/motion/reveal";
+import { Wordmark } from "@/components/brand/wordmark";
 
 type Mode = "sign-in" | "sign-up" | "forgot";
 
@@ -158,8 +159,7 @@ function LoginForm() {
       <Card className="w-full">
         <CardHeader>
           <div className="flex items-baseline gap-1.5">
-            <span className="font-serif text-xl">Attend</span>
-            <span className="font-serif text-xl italic text-primary">Pac</span>
+            <Wordmark size="xl" />
           </div>
           <CardTitle className="mt-4">{copy.title}</CardTitle>
           <CardDescription>{copy.description}</CardDescription>

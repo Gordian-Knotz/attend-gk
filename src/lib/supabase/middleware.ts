@@ -3,7 +3,14 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { authCookieOptions } from "./cookies";
 
-const PROTECTED_PATHS = ["/admin", "/dashboard", "/onboarding", "/checkin", "/api"];
+const PROTECTED_PATHS = [
+  "/admin",
+  "/dashboard",
+  "/onboarding",
+  "/checkin",
+  "/super",
+  "/api",
+];
 
 /**
  * Segment-aware prefix match. A plain `startsWith("/admin")` also matches

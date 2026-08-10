@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { OnboardingForm } from "./onboarding-form";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export default async function OnboardingPage() {
   const supabase = await createClient();
@@ -25,8 +26,7 @@ export default async function OnboardingPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <div className="flex items-baseline gap-1.5">
-            <span className="font-serif text-xl">Attend</span>
-            <span className="font-serif text-xl italic text-primary">Pac</span>
+            <Wordmark size="xl" />
           </div>
           <CardTitle className="mt-4">Set up your organization</CardTitle>
           <CardDescription>

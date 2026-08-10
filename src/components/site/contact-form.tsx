@@ -4,6 +4,7 @@ import * as React from "react";
 import { Check, Loader2 } from "lucide-react";
 
 import { submitContactRequest } from "@/app/contact-actions";
+import { SUPPORT_EMAIL as CONTACT_ADDRESS } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +18,6 @@ import {
 } from "@/components/ui/select";
 
 const TEAM_SIZES = ["1–10", "11–50", "51–200", "200+"];
-
-const CONTACT_ADDRESS = "hello@pac.africa";
 
 export function ContactForm() {
   const [status, setStatus] = React.useState<"idle" | "submitting" | "sent">(

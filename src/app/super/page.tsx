@@ -133,7 +133,7 @@ export default async function SuperOverviewPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Platform"
-        description={`Every organization on AttendPAC — usage, billing and status. Signed in as ${identity.fullName}.`}
+        description={`Every organization on Activ-HR — usage, billing and status. Signed in as ${identity.fullName}.`}
       />
 
       <StatTiles

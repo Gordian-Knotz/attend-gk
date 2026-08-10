@@ -1,12 +1,19 @@
-# AttendPAC
+# Activ-HR
 
-Workforce attendance & time management platform — PAC Africa Technology Division.
+Workforce attendance & time management platform.
 Engineering delivery: Gordian Knotz Technovation.
+
+> Renamed from AttendPAC on 10 Aug 2026. The rename is **user-visible only**:
+> the DS-01 design tokens are still `--pac-ink`, `--pac-orange` and friends,
+> the npm package is still `attendpac`, and the PowerSync database file and
+> offline-queue key still carry the old name — renaming that key would orphan
+> punches queued on a device that hasn't synced yet. Every customer-facing
+> string lives in `src/lib/brand.ts`.
 
 ## Stack
 
 - **Next.js 15** (App Router, TypeScript) — pinned to 15, not latest, to stay
-  consistent with pac.africa / jobs.pac.africa / cdp.pac.africa.
+  consistent with the other properties in the estate.
 - **Tailwind CSS v4** (CSS-first config, no `tailwind.config.ts`).
 - **shadcn/ui** components, hand-built rather than CLI-installed (see note
   below), style: `new-york`.
@@ -16,10 +23,10 @@ Engineering delivery: Gordian Knotz Technovation.
   page transitions and the sliding nav indicators.
 - **React Bits** components, vendored into `src/components/reactbits/` and
   used through brand wrappers. See
-  `context & sessions/07-ui-motion-layer.md`.
+  `context-sessions/07-ui-motion-layer.md`.
 - **PowerSync** (`@powersync/web`) for offline check-in — wired but inert
   until `NEXT_PUBLIC_POWERSYNC_URL` is set. See
-  `context & sessions/08-powersync-offline.md`.
+  `context-sessions/08-powersync-offline.md`.
 - **next-themes** for the light/dark toggle.
 - **@fontsource** packages for the brand typefaces — self-hosted, no Google
   Fonts CDN dependency.
@@ -29,8 +36,12 @@ Engineering delivery: Gordian Knotz Technovation.
 - **`/`** — marketing/landing page: hero, client band, the full feature
   inventory grouped into four clusters, the three capture methods, an
   industry switcher (five industries, deep-linkable as `/#logistics` etc.),
-  the roles table, FAQs, and a pilot-request contact form. "Log in" /
+  FAQs, a pilot-request contact form, and the client band — which now sits
+  immediately above the footer as a paused-on-hover marquee. "Log in" /
   "Sign up" in the header both go to `/login`.
+
+  The roles table ("Who sees what") was removed on 10 Aug, and the footer link
+  pointing at it went with it rather than becoming a dead anchor.
 - **`/login`** — Supabase email/password auth, with a "Forgot password?"
   flow that emails a reset link. Signing up creates a new account with no
   organization attached yet; signing in routes you to `/admin`,
@@ -42,7 +53,11 @@ Engineering delivery: Gordian Knotz Technovation.
   Lets them name an organization and become its `org_admin`, via a
   dedicated Postgres RPC (`create_organization_for_self`) that bootstraps
   one org + one default site + their own employee row atomically.
-- **`/dashboard`** — the staff-facing dashboard. Clock in/out (geofenced,
+- **`/dashboard`** — the staff-facing dashboard, behind its own sidebar
+  (Clock in / Shifts / History / Leave, highlighted by scroll position; a
+  horizontal rail at mobile widths). Those four are anchors into one page
+  rather than routes, so there is one set of queries and one set of failure
+  states to get right. Clock in/out (geofenced,
   browser Geolocation API, offline-queued via localStorage, server-side
   geofence re-validation on every submit) is one card among several — this
   week's shifts, recent attendance, and leave requests (submit + status)
@@ -69,11 +84,22 @@ Engineering delivery: Gordian Knotz Technovation.
   - **Organizations** — super_admin only, hidden from everyone else: every
     client org on the platform with plan tier, billing status, and staff
     and site counts. Read-only; there's no org-switcher yet.
-  - **Settings** is still a stub.
-- **`middleware.ts`** — refreshes the Supabase session and guards
-  `/admin/*`, `/dashboard`, and `/onboarding` server-side, per Section 06.
-  Passes requests through untouched if Supabase env vars aren't set, so
-  the marketing site keeps working either way.
+  - **Settings** — organization rename, plan and billing shown read-only,
+    per-site geofence editing, and the timezone plus late/absent cutoffs that
+    every report is computed against. Billing is read-only because the database
+    enforces it: migration 0010's `BEFORE UPDATE` trigger lets an org_admin
+    change nothing on that row but its name, so an editable control here would
+    be a form that always fails.
+- **`src/middleware.ts`** — refreshes the Supabase session and guards
+  `/admin`, `/dashboard`, `/checkin`, `/onboarding`, `/super` and `/api`
+  server-side, per Section 06. In production it **throws** when the Supabase
+  env vars are missing rather than passing requests through unauthenticated;
+  it falls through only in development.
+
+  It must sit at `src/middleware.ts`, beside the `app` directory. At the
+  repository root Next does not compile it at all — no warning, no error, and
+  two sessions of green builds while route protection and server-side session
+  refresh silently never happened. See doc 12.
 
 ## Setting up Supabase
 
@@ -249,15 +275,40 @@ npm install
 npm run dev
 ```
 
+Copy `.env.example` to `.env.local` first. Without the two
+`NEXT_PUBLIC_SUPABASE_*` values the app runs but nothing authenticates; in
+production it refuses to serve at all, deliberately.
+
+## Deploying
+
+Railway, one container. `npm run build` then `npm start`; `next start` picks up
+Railway's `PORT` on its own, so there is nothing to configure there.
+
+```bash
+railway up --service web --detach
+railway deployment list --service web --json   # poll until SUCCESS
+```
+
+Two things about this deployment specifically:
+
+- **Every `NEXT_PUBLIC_*` variable is inlined at build time.** Setting one after
+  a deploy does nothing until the service rebuilds.
+- **The rate limiter is per process.** `src/lib/rate-limit.ts` holds its buckets
+  in a module-scope `Map`, which counts correctly on one long-lived container
+  and becomes decorative at N replicas, where the real ceiling is N × the
+  configured limit. `RateLimitStore` is an interface so it can be swapped for
+  Redis when you scale out — do that before adding the second replica, not
+  after.
+
 ## Next steps
 
 1. **The "late" rule is a placeholder.** `src/lib/attendance.ts` currently
    flags anyone checking in after 7:15 AM org-wide. Once shift-aware
    scheduling logic is added, compare against each employee's actual
    `shifts.start_at` instead.
-2. **Settings is still a stub**, and needs site geofence editing (currently
-   add/delete only, no edit) plus org profile/billing. Reports covers the
-   CSV half of Section 03; a direct payroll-provider API push is still open.
+2. **Payroll API push.** Reports covers the CSV half of Section 03; a direct
+   push to a payroll provider is still unbuilt. Settings itself is no longer a
+   stub — geofence editing and the org profile landed 10 Aug.
 3. **Nothing writes `notifications` automatically.** The intended writers
    are the exception detector and the biometric webhook bridge, both
    unbuilt — for now notices are posted by hand from `/admin`.
@@ -280,7 +331,7 @@ npm run dev
 
 ## Merge note — where this code came from
 
-An earlier prototype of AttendPAC (Next 14 / Tailwind 3 / no component
+An earlier prototype (Next 14 / Tailwind 3 / no component
 library) was folded into this codebase rather than kept alongside it. This
 repo is the base; nothing was carried over wholesale, because the two had
 incompatible data models — `profiles` vs `employees`, and a flat
@@ -295,10 +346,12 @@ flow; and the `notifications` table.
 
 What was deliberately left behind: its schema and RLS (one policy let any
 authenticated user insert attendance rows for a colleague in the same org),
-its Supabase clients (they call `cookies()` synchronously, which throws on
-Next 15), its hand-written database types, and its Tailwind 3 theme.
+its Supabase clients (they call `cookies()` synchronously, which Next 15 still
+shims with a warning but hard-fails under `cacheComponents` — so they needed
+migrating to `await cookies()` either way), its hand-written database types, and
+its Tailwind 3 theme.
 
 The full audit, the reasoning behind each call, and a file-by-file
-breakdown live in **[`context & sessions/`](context%20&%20sessions/)** —
+breakdown live in **[`context-sessions/`](context-sessions/)** —
 start with its README. Read `04-database-and-rls.md` before changing
 anything under `supabase/`.

@@ -16,7 +16,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { PowerSyncProvider } from "@/lib/powersync/provider";
 
 export const metadata: Metadata = {
-  title: "AttendPAC — Workforce Attendance & Time Management",
+  title: "Activ-HR — Workforce Attendance & Time Management",
   description:
     "Cloud-native, mobile-first workforce attendance and time-tracking platform for the Kenyan market.",
 };

@@ -9,27 +9,57 @@ const CLIENTS = [
 ] as const;
 
 /**
- * Masthead-style client band. DS-01 is a document format, so these are set
- * as mono rules-and-labels rather than the pill chips the earlier landing
- * page used — pills fight the 0.2rem corner radius the rest of the app uses.
+ * Client band, as a paused-on-hover marquee.
+ *
+ * Two things worth knowing before editing this.
+ *
+ * **It moved.** This used to sit directly under the hero. It now sits
+ * immediately above the footer, because near the top it was asking for trust
+ * before the page had made any claim to corroborate.
+ *
+ * **The names are still set as type, not chips.** DS-01 is a document format
+ * and `--radius` is 0.2rem, so the pill chips the earlier landing page used
+ * read as foreign. The motion is the change here; the treatment isn't.
+ *
+ * The scroll itself is `.marquee-track` in globals.css — CSS rather than
+ * React Bits' `LogoLoop`, which doc 07 records as pulled and then removed.
+ * With only five names a loop is thin, which is the reason it was dropped the
+ * first time; duplicating the list is what makes the belt continuous rather
+ * than five names sliding past a gap. Adding real names is still the better
+ * fix than tuning the duration.
  */
 export function TrustBar() {
   return (
     <section className="border-y border-border bg-secondary/30">
-      <Reveal className="mx-auto max-w-6xl px-6 py-8">
-        <p className="font-label text-center text-muted-foreground">
+      <Reveal className="mx-auto max-w-6xl py-8">
+        <p className="font-label px-6 text-center text-muted-foreground">
           Trusted by growing teams across East Africa
         </p>
-        <ul className="mt-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-          {CLIENTS.map((name) => (
-            <li
-              key={name}
-              className="font-serif text-sm text-foreground/70 md:text-base"
-            >
-              {name}
-            </li>
-          ))}
-        </ul>
+
+        <div className="marquee-mask mt-5 overflow-hidden">
+          <div className="marquee-track">
+            {/* The second pass is presentational: it exists so the belt has no
+                seam. Hidden from assistive tech so the names aren't announced
+                twice, and removed outright under reduced motion. */}
+            {[false, true].map((isClone) => (
+              <ul
+                key={isClone ? "clone" : "primary"}
+                aria-hidden={isClone || undefined}
+                data-marquee-clone={isClone || undefined}
+                className="flex shrink-0 items-center gap-x-12 px-6"
+              >
+                {CLIENTS.map((name) => (
+                  <li
+                    key={name}
+                    className="font-serif whitespace-nowrap text-sm text-foreground/70 md:text-base"
+                  >
+                    {name}
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
+        </div>
       </Reveal>
     </section>
   );

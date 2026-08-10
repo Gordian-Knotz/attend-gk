@@ -216,3 +216,73 @@
     display: none;
   }
 }
+
+/* ── Client-band marquee ──────────────────────────────────────────────────
+   Used by TrustBar. Deliberately CSS rather than React Bits' `LogoLoop`,
+   which doc 07 records as vendored and then removed: it was the only file
+   producing lint errors, and like every React Bits component it ignores
+   `prefers-reduced-motion`. This is a scroll that a media query can switch
+   off, with no dependency and no client component.
+
+   The track holds the list twice and travels exactly -50%, so the second
+   copy is under the cursor at the moment the first finishes and the seam is
+   invisible. Change the duplicate count and -50% together or it will jump. */
+@keyframes pac-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: pac-marquee 38s linear infinite;
+}
+
+/* Hovering pauses it, so a name someone is trying to read stops moving. */
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* Fade the ends rather than cutting them off at the container edge — a hard
+   edge reads as clipped content, which is the defect doc 07 found with the
+   Aurora backdrop. */
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 8%,
+    #000 92%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 8%,
+    #000 92%,
+    transparent
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* Without the animation the second copy would just be the same five names
+     printed twice, so it goes away entirely. */
+  .marquee-track [data-marquee-clone] {
+    display: none;
+  }
+
+  .marquee-mask {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}

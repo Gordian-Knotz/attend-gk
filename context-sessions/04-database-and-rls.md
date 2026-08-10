@@ -253,7 +253,7 @@ makes it the normal write path.
 > - **`summary: select` and `leave: select` were "self or whole org"**, so
 >   plain staff could read every colleague's hours and leave history.
 >
-> **Still unexecuted.** 0008 is re-runnable by design (`drop policy if
+> **Applied 10 Aug 2026.** 0008 is re-runnable by design (`drop policy if
 > exists` throughout), so it applies whether or not 0001–0007 are already on
 > the target database.
 
@@ -267,10 +267,10 @@ makes it the normal write path.
 0005_super_admin_site_read.sql  RLS fix                           APPLIED
 0006_notifications.sql          notices                           APPLIED
 0007_geofence_enforcement.sql   geofence trigger                  APPLIED
-0008_attendance_insert_integrity.sql  RLS + trigger hardening     pending
-0009_contact_requests.sql       landing-page enquiries            pending
-0010_platform_administration.sql  billing, suspension, guard      pending
-0011_employee_role_integrity.sql  stops org_admin self-promotion  pending
+0008_attendance_insert_integrity.sql  RLS + trigger hardening     APPLIED (10 Aug)
+0009_contact_requests.sql       landing-page enquiries            APPLIED (10 Aug)
+0010_platform_administration.sql  billing, suspension, guard      APPLIED (10 Aug)
+0011_employee_role_integrity.sql  stops org_admin self-promotion  APPLIED (10 Aug)
 seed.sql                        demo org, site, notices  ← run last
 ```
 

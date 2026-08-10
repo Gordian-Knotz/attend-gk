@@ -8,6 +8,7 @@ import { LeaveRequestDialog } from "./leave-request-dialog";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Reveal } from "@/components/motion/reveal";
+import { EmployeeSidebar } from "@/components/dashboard/employee-sidebar";
 import { OrgSuspended } from "@/components/org-suspended";
 import { DISPLAY_LOCALE, ORG_TIME_ZONE, formatTime } from "@/lib/timezone";
 
@@ -139,19 +140,27 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-secondary/20">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-5">
-          <div>
-            <div className="font-serif text-xl">Hi, {firstName}</div>
-            <div className="text-sm text-muted-foreground">{today}</div>
-          </div>
-          <SignOutButton />
-        </div>
-      </header>
+    <div className="flex min-h-screen bg-secondary/20">
+      <EmployeeSidebar siteName={site?.name ?? null} />
 
-      <main className="mx-auto max-w-4xl px-6 py-8">
-      <Reveal className="flex flex-col gap-6" distance={16} duration={0.45}>
+      {/* min-w-0 so a wide child (the history rows) shrinks instead of pushing
+          the flex row wider than the viewport. */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="border-b border-border bg-background">
+          <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-5">
+            <div>
+              <div className="font-serif text-xl">Hi, {firstName}</div>
+              <div className="text-sm text-muted-foreground">{today}</div>
+            </div>
+            <SignOutButton />
+          </div>
+        </header>
+
+        <main className="mx-auto w-full max-w-4xl px-6 py-8">
+        {/* scroll-mt on each section so an anchor jump clears the mobile rail
+            above it rather than landing underneath it. */}
+        <Reveal className="flex flex-col gap-6" distance={16} duration={0.45}>
+        <div id="clock-in" className="scroll-mt-20">
         <CheckInWidget
           siteName={site?.name ?? null}
           geofence={
@@ -167,9 +176,10 @@ export default async function DashboardPage() {
             (lastEvent?.event_type as "check_in" | "check_out" | undefined) ?? null
           }
         />
+        </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <Card>
+          <Card id="shifts" className="scroll-mt-20">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <CalendarClock className="size-4 text-muted-foreground" />
@@ -212,7 +222,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="history" className="scroll-mt-20">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <History className="size-4 text-muted-foreground" />
@@ -258,7 +268,7 @@ export default async function DashboardPage() {
           </Card>
         </div>
 
-        <Card>
+        <Card id="leave" className="scroll-mt-20">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -300,8 +310,9 @@ export default async function DashboardPage() {
             ))}
           </CardContent>
         </Card>
-      </Reveal>
-      </main>
+        </Reveal>
+        </main>
+      </div>
     </div>
   );
 }

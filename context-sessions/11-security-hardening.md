@@ -317,9 +317,12 @@ Route sizes: `/` 31.3 kB (266 kB), `/admin` 8.32 kB (303 kB),
 
 **Not verified, and this is the important line in this document:**
 
-- **0008 is unexecuted SQL.** The RLS changes are the highest-risk part of
-  this session — a policy that is too tight breaks the app, and you find out
-  at runtime, not at build.
+- ~~**0008 is unexecuted SQL.**~~ **Applied 10 Aug 2026**, along with
+  0009–0011. The RLS changes were the highest-risk part of this session — a
+  policy that is too tight breaks the app, and you find out at runtime, not at
+  build — so the four-tier read policies and the unassigned-employee rejection
+  below are now live behaviour rather than pending SQL, and still want
+  exercising against a real session.
 
   > **Corrected later the same day.** This originally read "Nothing has run
   > against a live Postgres… like 0005–0007 before it". Wrong: probing the

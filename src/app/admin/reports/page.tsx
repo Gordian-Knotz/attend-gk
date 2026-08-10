@@ -154,7 +154,7 @@ export default async function ReportsPage({
   // according to the server's, so the same CSV could say "10/08/2026" or
   // "8/10/2026" depending on where it was generated.
   const periodLabel = `${formatDate(windowStart)} – ${formatDate(now)}`;
-  const fileName = `attendpac-timesheet-${localDateKey(windowStart)}-to-${localDateKey(now)}.csv`;
+  const fileName = `activ-hr-timesheet-${localDateKey(windowStart)}-to-${localDateKey(now)}.csv`;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">

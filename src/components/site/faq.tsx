@@ -6,7 +6,7 @@ import { RevealHeading } from "@/components/motion/reveal-heading";
 
 const FAQS = [
   [
-    "Is AttendPAC free to try?",
+    "Is Activ-HR free to try?",
     "Yes. Start a free trial for your organization, no credit card required, and upgrade as your team grows.",
   ],
   [
@@ -19,7 +19,7 @@ const FAQS = [
   ],
   [
     "Can I export attendance data to my payroll provider?",
-    "Yes. Approved hours export as CSV, or pull them directly via the AttendPAC API.",
+    "Yes. Approved hours export as CSV, or pull them directly via the Activ-HR API.",
   ],
   [
     "What devices can my team use to clock in?",
@@ -31,7 +31,7 @@ const FAQS = [
   ],
   [
     "Is there a limit on how many sites or staff I can add?",
-    "No. AttendPAC scales from a single site to a multi-site organization, with role-based access for every level of your team.",
+    "No. Activ-HR scales from a single site to a multi-site organization, with role-based access for every level of your team.",
   ],
 ] as const;
 

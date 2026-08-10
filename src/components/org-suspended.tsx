@@ -2,6 +2,7 @@ import { Ban } from "lucide-react";
 
 import { Callout } from "@/components/callout";
 import { SignOutLink } from "@/components/auth/sign-out-link";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/brand";
 
 /**
  * Shown instead of the app when an organization has been suspended from
@@ -48,8 +49,8 @@ export function OrgSuspended({
 
       <p className="text-sm text-muted-foreground">
         Get in touch at{" "}
-        <a className="text-primary underline" href="mailto:hello@pac.africa">
-          hello@pac.africa
+        <a className="text-primary underline" href={SUPPORT_MAILTO}>
+          {SUPPORT_EMAIL}
         </a>{" "}
         and we&apos;ll restore it.
       </p>

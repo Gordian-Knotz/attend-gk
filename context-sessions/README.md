@@ -8,7 +8,15 @@ files tell you why it looks the way it does.
 Sessions: **6 August 2026** (docs 01–08) and **10 August 2026** — first the
 v3 port (docs 09–10, plus corrections marked inline in 03, 04, 06, 07 and
 08), then a security audit and hardening pass (doc 11, plus corrections in
-01, 02, 06 and 07), then the platform console and rate limiting (doc 12).
+01, 02, 06 and 07), then the platform console and rate limiting (doc 12),
+then the Railway deploy, the Activ-HR rename and four pieces of product work
+(doc 13, plus corrections in 08 and 12).
+
+> **The product is called Activ-HR.** Renamed from AttendPAC on 10 Aug 2026,
+> user-visible strings only — the `--pac-*` design tokens, the `attendpac`
+> package name and the `attendpac:offline-queue` key all keep the old name on
+> purpose. Docs written before the rename say AttendPAC throughout; they are
+> historical and were left alone. See [13](13-railway-rename-and-product-work.md).
 
 | File | What's in it |
 |---|---|
@@ -24,14 +32,32 @@ v3 port (docs 09–10, plus corrections marked inline in 03, 04, 06, 07 and
 | [10-live-db-bringup.md](10-live-db-bringup.md) | The ordered plan for running 0005–0008 against a real Postgres, with fixtures and expected values for every check |
 | [11-security-hardening.md](11-security-hardening.md) | The CodeRabbit audit: how to run it on a whole codebase, the five criticals, the self-approved-leave hole it missed, and migration 0008 |
 | [12-platform-console-and-limits.md](12-platform-console-and-limits.md) | `/super`, rate limiting (and why auth had to move server-side first), cookie/JWT policy, and the caching rule |
+| [13-railway-rename-and-product-work.md](13-railway-rename-and-product-work.md) | The Railway deploy and what it found, the Activ-HR rename, the employee sidebar, Settings wired, and the landing-page changes |
 | [coderabbit-findings-10aug.md](coderabbit-findings-10aug.md) | Raw output — all 90 findings by severity |
 
-## Where we left off — 10 Aug 2026 (hardening + platform console)
+## Where we left off — 10 Aug 2026 (deployed, renamed)
 
-`tsc`, `lint` and `build` green (**19 routes + `ƒ Middleware 92.9 kB`**),
-and a Playwright pass over the public routes at three widths in both themes.
-On branch **`harden-security-audit`**, cut from `main` at `9fa2a6f`. Not
-merged, not pushed.
+`tsc`, `lint` and `build` green (**19 routes + `ƒ Middleware 92.9 kB`**). On
+branch **`harden-security-audit`**, cut from `main` at `9fa2a6f`.
+
+**The app is deployed.** Railway project `activ-hr`, service `web`, one
+container, live at `web-production-c7d3e.up.railway.app`. Deployed from the
+working tree with `railway up`, so what runs there is the branch state.
+Migrations **0001–0011 are all applied** to the live Supabase project.
+
+> **Two things are missing and both bite.**
+> `SUPABASE_SERVICE_ROLE_KEY` is set neither in `.env.local` nor on Railway, so
+> staff invite is broken in dev and in production. And `SUPPORT_EMAIL` in
+> `src/lib/brand.ts` is a **placeholder** — `hello@activ-hr.com`, unconfirmed —
+> which backs the contact form's fallback and the suspension notice.
+> See [13](13-railway-rename-and-product-work.md).
+
+> **The newest visual work has not been in a browser.** The rename, the
+> employee sidebar, Settings, the marquee and `PixelCard` are all build-clean
+> and unlooked-at; Playwright isn't installed on this machine. Docs 07, 09 and
+> 12 each record a green build followed by real defects on the first look. The
+> four things to check first are listed at the end of
+> [13](13-railway-rename-and-product-work.md).
 
 > **Read this first if you read nothing else.** The browser pass found that
 > **`middleware.ts` had never run** — it sat at the repository root while the
@@ -43,14 +69,37 @@ merged, not pushed.
 > [12](12-platform-console-and-limits.md).
 
 > **The live project is further along than these docs used to claim.**
-> Migrations **0001–0007 are applied**. 0008, 0009 and 0010 are not. The
-> repeated "nothing has run against a live Supabase instance" in docs 03, 06
-> and 11 is out of date — see the table in
-> [12](12-platform-console-and-limits.md).
+> Migrations **0001–0011 are all applied** as of 10 Aug. The repeated "nothing
+> has run against a live Supabase instance" in docs 03, 06 and 11 is out of
+> date — see the table in [12](12-platform-console-and-limits.md) for the probe
+> and [13](13-railway-rename-and-product-work.md) for the 0008–0011 confirmation.
 
 > Note: the entry below previously said "committed, not pushed" of the v3
 > hero work. `main` *is* pushed — `github.com/Gordian-Knotz/attend-gk`,
 > 0 ahead / 0 behind. Corrected.
+
+### What changed — part three: deploy, rename, product work ([13](13-railway-rename-and-product-work.md))
+
+- **Railway.** Project `activ-hr`, one container. Every `NEXT_PUBLIC_*` value is
+  inlined at **build** time, so setting one after a deploy does nothing until a
+  rebuild.
+- **The deploy found `/super` missing from `PROTECTED_PATHS`** — its layout was
+  catching it, not middleware. Not an open hole, but doc 12 had recorded "all
+  five redirect" as a pass while its own encoded-vs-unencoded `?next=` test sat
+  in the evidence. Third outing for the same lesson.
+- **Renamed to Activ-HR**, user-visible only. Strings in `src/lib/brand.ts`; the
+  wordmark, previously inlined in seven files, is one component.
+- **`/dashboard` has a sidebar** — four anchors into one page rather than four
+  routes, so there stays one set of queries and one set of failure states.
+- **Settings is no longer a stub** — org rename, per-site geofence editing, and
+  plan/billing read-only *because 0010's trigger enforces that*, not by
+  convention.
+- **Landing page** — "Who sees what" removed (and its footer link with it), the
+  client band moved above the footer as a CSS marquee, capture cards rebuilt on
+  a rewritten `PixelCard`.
+- **PowerSync stays paused, but is unblocked.** The migration gate is clear, the
+  `libpowersync*.wasm` "blocker" was never real, and the `own_attendance` stream
+  contradicted `insertOnly` and is gone.
 
 ### What changed — part two: platform console ([12](12-platform-console-and-limits.md))
 
@@ -70,7 +119,7 @@ merged, not pushed.
 - **Caching**, with the rule that most of this data is RLS-scoped and must
   never enter a shared cache.
 - **Migrations 0009** (contact_requests) **and 0010** (billing constraint,
-  suspension, per-column update guard). Both unexecuted.
+  suspension, per-column update guard). Both applied since, on 10 Aug.
 
 ### What changed — part one: the audit ([11](11-security-hardening.md))
 
@@ -80,9 +129,8 @@ plus one hole it missed. Raw findings in
 
 The five things most worth knowing:
 
-1. **`0008_attendance_insert_integrity.sql` is written.** It closes the
-   0007 bypass and four more RLS holes. Re-runnable by design. **Still
-   unexecuted.**
+1. **`0008_attendance_insert_integrity.sql`** closes the 0007 bypass and four
+   more RLS holes. Re-runnable by design. **Applied 10 Aug**, with 0009–0011.
 2. **Staff could approve their own leave** — CodeRabbit missed this one.
    `leave: self insert` checked only `employee_id`, and `status` had no
    constraint, so posting `status: 'approved'` moved you out of the absent
@@ -98,45 +146,56 @@ The five things most worth knowing:
 
 ### Blocked on you, in order
 
-1. **Run migrations 0008, 0009, 0010 and 0011.** Two of these are live
-   security holes on the current project, not hypotheticals:
+1. ~~**Run migrations 0008, 0009, 0010 and 0011.**~~ **Done, 10 Aug 2026.**
+   Both live holes are closed: the geofence is no longer bypassable via
+   `source: 'biometric'` (0008 pins `org_id`, `site_id` and `source` on the
+   staff insert policy), and an `org_admin` can no longer PATCH themselves to
+   `super_admin` (0011). Verified through PostgREST —
+   `attendance_events.client_event_id`, `contact_requests` and
+   `organizations.suspended_at` all resolve, so the schema cache picked the
+   changes up too. 0011 is a trigger and can't be probed anonymously; its
+   test is in [10](10-live-db-bringup.md)'s checklist.
+2. **Add `SUPABASE_SERVICE_ROLE_KEY`** — to `.env.local` *and* to Railway.
+   Still absent from both as of 10 Aug; the only keys in the file are the two
+   `NEXT_PUBLIC_` Supabase ones. Blocks the `/admin/staff` invite and
+   `scripts/seed-demo-data.mjs`, in dev and in production.
 
-   - 0007 is applied and 0008 is not, so **the geofence is bypassable right
-     now** — a client can send `source: 'biometric'` and skip it. Exposure
-     is limited to a hand-crafted PostgREST call while
-     `NEXT_PUBLIC_POWERSYNC_URL` stays unset, so **keep it unset until 0008
-     is in**.
-   - **Any `org_admin` can promote themselves to `super_admin`** by PATCHing
-     their own `employees` row — 0003's policy never constrained the `role`
-     column. 0011 closes it. Apply it before anyone but you holds an
-     `org_admin` account.
-
-   All four are safe to run twice. 0008 is deliberately idempotent because
-   an earlier hand-written version of it is already applied — the committed
-   file is a superset. 0008 and 0010 both rewrite existing rows before
-   adding constraints; read them before running.
-2. **Add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`.** Referenced in code,
-   absent from the file. Blocks the `/admin/staff` invite and
-   `scripts/seed-demo-data.mjs`.
-3. **Work through [10](10-live-db-bringup.md)** — migrations 0005–0008 and
-   seed against a real project, then the three computations most likely to
-   be subtly wrong (day bucketing, check-in pairing, absent arithmetic).
-   Add the 0008 cases from [11](11-security-hardening.md) to Phase 4.
-4. **Browser-check the routes behind auth.** The public ones are done —
+   ```bash
+   railway variables --service web --set "SUPABASE_SERVICE_ROLE_KEY=<key>"
+   ```
+3. **Confirm the support address.** `SUPPORT_EMAIL` in `src/lib/brand.ts` is
+   `hello@activ-hr.com` — a placeholder nobody has verified receives mail. It
+   backs the contact form's fallback and the suspension notice, so if it
+   doesn't, enquiries vanish silently. One line.
+4. **Look at the new UI in a browser.** Playwright isn't installed here, so the
+   rename, the employee sidebar, Settings, the marquee and `PixelCard` are all
+   unlooked-at. Priorities and the four specific risks are at the end of
+   [13](13-railway-rename-and-product-work.md).
+5. **Work through [10](10-live-db-bringup.md)** — seed against the real project,
+   then the three computations most likely to be subtly wrong (day bucketing,
+   check-in pairing, absent arithmetic). The migrations half of that plan is
+   done; Phase 3 and Phase 4 are not. Add the 0008 cases from
+   [11](11-security-hardening.md) to Phase 4.
+6. **Browser-check the routes behind auth.** The public ones are done —
    see [12](12-platform-console-and-limits.md). Still unrendered: `/super`
    (never once), `/admin` as the real page, `/dashboard`, `/checkin`,
    `/onboarding`. All need a session. Also worth exercising once you have
    one: a suspend/restore round trip on a scratch org, and that a ~20-punch
    offline-queue drain doesn't trip the attendance limiter.
-5. `npm install-scripts approve @journeyapps/wa-sqlite` — still blocked, and
-   re-confirmed precisely on 10 Aug: `libpowersync.wasm` and
-   `libpowersync-async.wasm` are genuinely absent from its `dist/`. It
-   executes a package script and fetches a binary, which is why it hasn't
-   been done unasked.
-6. **Provision PowerSync** — Cloud instance, `supabase/powersync-setup.sql`
+7. ~~`npm install-scripts approve @journeyapps/wa-sqlite`~~ **Closed — it was
+   never a blocker.** Approved on 10 Aug; the script then runs and **404s**
+   fetching `libpowersync.wasm@v0.5.2`, which is simply not published. It
+   doesn't matter: `@powersync/web` only loads the *static* wa-sqlite builds,
+   which are present and already copied into `public/@powersync/assets/`. The
+   package's own error says as much. Full account in
+   [08](08-powersync-offline.md).
+8. **Provision PowerSync** — Cloud instance, `supabase/powersync-setup.sql`
    on a **direct** Postgres connection (DDL and `CREATE ROLE` can't go
-   through PostgREST), deploy `powersync/sync-rules.yaml`, then the env var
-   from item 1's caveat.
+   through PostgREST), deploy `powersync/sync-rules.yaml`, then the env var.
+   The migration gate is clear, so this is now unblocked. Read
+   [08](08-powersync-offline.md) item 2 first — the instance version, the
+   "Use Supabase Auth" JWT setup and the publication name each fail quietly
+   if you get them wrong.
 
 **First job after those:** rewrite `src/app/dashboard/checkin-widget.tsx`
 and `/checkin` onto local SQLite, dropping the localStorage queue. Held back
@@ -215,11 +274,8 @@ repo depends on it.
 
 ## A note on this folder's name
 
-The `&` in "context & sessions" needs quoting in most shells:
-
-```bash
-cd "context & sessions"
-```
-
-Renaming it to `context-and-sessions` would remove that friction if it
-becomes annoying.
+Renamed from `context & sessions` to `context-sessions` on 10 Aug 2026. The
+`&` needed quoting in every shell that touched it. Older documents in this
+folder still quote the old path where they are recording what was written at
+the time — those are historical and were left alone; live references in the
+root `README.md` were updated.

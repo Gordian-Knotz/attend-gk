@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 
+import { SUPPORT_EMAIL } from "@/lib/brand";
 import { createClient } from "@/lib/supabase/server";
 import {
   clientIpFrom,
@@ -85,7 +86,7 @@ export async function submitContactRequest(
     console.error("[contact] insert failed", error.message);
     return {
       error:
-        "We couldn't record that just now. Email hello@pac.africa directly and we'll pick it up.",
+        `We couldn't record that just now. Email ${SUPPORT_EMAIL} directly and we'll pick it up.`,
     };
   }
 

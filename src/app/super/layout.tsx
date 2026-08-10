@@ -5,9 +5,10 @@ import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
+import { Wordmark } from "@/components/brand/wordmark";
 
 /**
- * PAC's own operator console — the vendor's view of its tenants, not a
+ * Activ-HR's own operator console — the vendor's view of its tenants, not a
  * tenant's view of itself.
  *
  * Deliberately outside `/admin`. Everything under `/admin` is written on the
@@ -34,8 +35,7 @@ export default async function SuperLayout({
       <header className="border-b-2 border-foreground bg-background">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-6 py-4">
           <div className="flex items-baseline gap-1.5">
-            <span className="font-serif text-xl">Attend</span>
-            <span className="font-serif text-xl italic text-primary">Pac</span>
+            <Wordmark size="xl" />
           </div>
 
           <Badge variant="attention" className="gap-1.5">

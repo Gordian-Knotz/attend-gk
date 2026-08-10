@@ -17,6 +17,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Reveal } from "@/components/motion/reveal";
+import { Wordmark } from "@/components/brand/wordmark";
 
 /**
  * Landing page for the reset link emailed by /login → "Forgot password?".
@@ -88,8 +89,7 @@ export default function ResetPasswordPage() {
       <Card className="w-full">
         <CardHeader>
           <div className="flex items-baseline gap-1.5">
-            <span className="font-serif text-xl">Attend</span>
-            <span className="font-serif text-xl italic text-primary">Pac</span>
+            <Wordmark size="xl" />
           </div>
           <CardTitle className="mt-4">
             {done ? "Password updated" : "Set a new password"}

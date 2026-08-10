@@ -52,6 +52,12 @@ const shifts = new Table(
  * keep local copies after upload, so a shared kiosk browser isn't
  * accumulating other people's history on disk.
  *
+ * Because an insert-only table never accepts downloaded rows, there is
+ * deliberately NO attendance stream in powersync/sync-rules.yaml — one used
+ * to be there and could not have worked. The two must change together: if
+ * the step-4 rewrite needs "currently clocked in" to survive offline after
+ * upload, drop `insertOnly` here and restore the stream in the same change.
+ *
  * TWO OFFLINE QUEUES EXIST RIGHT NOW, DELIBERATELY. This table is the
  * intended one; the live check-in path still uses the `attendpac:offline-queue`
  * localStorage array in `dashboard/checkin-widget.tsx` and

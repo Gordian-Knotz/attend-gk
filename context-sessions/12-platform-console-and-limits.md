@@ -300,8 +300,12 @@ the Railway deploy, not here.
 seed.sql                               run last
 ```
 
-0009 and 0010 are independent of each other; both assume 0001. **All three
-of 0008–0010 are unexecuted.**
+0009 and 0010 are independent of each other; both assume 0001.
+
+> **Updated 10 Aug 2026.** This said "all three of 0008–0010 are unexecuted".
+> 0008–0011 are now all applied — see
+> [13](13-railway-rename-and-product-work.md) for the confirmation probe.
+> Note that 0011 postdates this list and belongs at the end of it.
 
 ---
 
@@ -375,6 +379,25 @@ did not catch this; the first browser assertion did.
 | Check | Result |
 |---|---|
 | Protected routes | All five (`/admin`, `/dashboard`, `/checkin`, `/onboarding`, `/super`) redirect to `/login?next=…` |
+
+> **Corrected 10 Aug 2026, from the Railway deploy.** All five *do* redirect,
+> but not all five were redirected by **middleware**. `/super` was never added
+> to `PROTECTED_PATHS`; its own layout was catching it. The live smoke test
+> gives it away in the query string — `/admin` and `/dashboard` redirect to
+> `?next=%2Fadmin` (middleware, which URL-encodes through `searchParams.set`)
+> while `/super` went to `?next=/super` (the layout's own string). That is
+> the same signature this document used to diagnose the middleware bug in the
+> first place, and it was sitting in the evidence unread.
+>
+> It was never an open hole — the layout redirect is real, and middleware's
+> matcher still ran `getUser()` on the route, so session refresh was
+> happening. What `/super` was missing is the fail-closed env guard and the
+> guarantee that protection survives someone editing that layout. Now in
+> `PROTECTED_PATHS`.
+>
+> This is the third time this exact lesson has come around: **a route is only
+> protected by the layer you can point at.** Adding a route segment means
+> adding it to `PROTECTED_PATHS` in the same change.
 | Open redirect | `https://example.org/pwned`, `//example.org/pwned` and `/\example.org` all stayed on origin |
 | Auth rate limit | Engaged on attempt **7** — the per-identifier limit is 6. "Too many attempts for this account. Try again in 15 minutes." |
 | Credential enumeration | Failure message identical regardless of whether the account exists |

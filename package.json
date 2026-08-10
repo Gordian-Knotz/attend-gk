@@ -49,5 +49,8 @@
     "eslint-config-next": "15.5.22",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "@journeyapps/wa-sqlite@2.0.1": true
   }
 }

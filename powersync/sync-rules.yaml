@@ -47,12 +47,21 @@ streams:
         FROM shifts
         WHERE employee_id = auth.user_id()
 
-  # Their own punches. Written locally while offline, uploaded on
-  # reconnect, and read back to show "currently clocked in".
-  own_attendance:
-    auto_subscribe: true
-    queries:
-      - SELECT id, employee_id, org_id, site_id, source, event_type,
-               occurred_at, gps_lat, gps_lng, distance_m
-        FROM attendance_events
-        WHERE employee_id = auth.user_id()
+# ── Deliberately not synced: attendance_events ───────────────────────────
+#
+# There was an `own_attendance` stream here. It has been removed because it
+# could never have worked: `attendance_events` is declared `insertOnly: true`
+# in src/lib/powersync/schema.ts, and an insert-only table sends local writes
+# up and never accepts rows down. The stream would have replicated every
+# punch to the device for the client to discard.
+#
+# insertOnly is the deliberate choice — see doc 08. It is what stops a shared
+# kiosk browser accumulating other people's attendance history on disk, and
+# attendance is an append-only ledger that is never edited on-device.
+#
+# The cost: after a punch uploads, the device has no local record of it, so
+# "you are currently clocked in" cannot be answered from this table offline.
+# If that turns out to be required during the step-4 check-in rewrite, the
+# fix is to drop `insertOnly` AND restore this stream together — one without
+# the other is the inconsistency this comment replaced. Weigh it against the
+# kiosk-privacy argument before doing so.

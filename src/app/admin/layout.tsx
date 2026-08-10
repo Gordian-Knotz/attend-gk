@@ -9,7 +9,7 @@ import { AdminIdentityProvider } from "@/components/admin/identity-context";
 import { OrgSuspended } from "@/components/org-suspended";
 
 export const metadata: Metadata = {
-  title: "AttendPAC — Admin",
+  title: "Activ-HR — Admin",
 };
 
 export default async function AdminLayout({

@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+import { SUPPORT_EMAIL, SUPPORT_MAILTO, VENDOR_LINE } from "@/lib/brand";
+import { Wordmark } from "@/components/brand/wordmark";
+
 /**
  * Columned footer carried over from the earlier landing page. The original
  * had a newsletter form with nothing behind it and links to a Help Center,
@@ -12,7 +15,9 @@ const COLUMNS = [
     links: [
       { label: "Features", href: "/#features" },
       { label: "How staff clock in", href: "/#how-it-works" },
-      { label: "Roles & access", href: "/#access" },
+      // "Roles & access" pointed at /#access, removed from the landing page on
+      // 10 Aug. Dropped rather than repointed — a link to a section that no
+      // longer exists is exactly the dead link doc 02 refused to ship.
       { label: "FAQs", href: "/#faq" },
     ],
   },
@@ -32,7 +37,7 @@ const COLUMNS = [
       { label: "Request a pilot", href: "/#contact" },
       { label: "Log in", href: "/login" },
       { label: "Create an organization", href: "/login?mode=sign-up" },
-      { label: "hello@pac.africa", href: "mailto:hello@pac.africa" },
+      { label: SUPPORT_EMAIL, href: SUPPORT_MAILTO },
     ],
   },
 ] as const;
@@ -44,8 +49,7 @@ export function SiteFooter() {
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="font-serif text-xl">Attend</span>
-              <span className="font-serif text-xl italic text-primary">Pac</span>
+              <Wordmark size="xl" />
             </div>
             <p className="mt-3 max-w-xs text-sm text-pac-paper/60">
               Attendance software for teams that work on-site and in the field.
@@ -72,9 +76,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-12 flex flex-col justify-between gap-2 border-t border-pac-paper/15 pt-6 sm:flex-row">
-          <span className="font-label text-pac-paper/50">
-            PAC Africa · Gordian Knotz Technovation · Confidential
-          </span>
+          <span className="font-label text-pac-paper/50">{VENDOR_LINE}</span>
           <span className="font-label text-pac-paper/50">Made in Nairobi</span>
         </div>
       </div>

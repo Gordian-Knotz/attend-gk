@@ -1,13 +1,7 @@
 import Link from "next/link";
-import {
-  Smartphone,
-  Fingerprint,
-  QrCode,
-  ArrowRight,
-  Check,
-  X,
-} from "lucide-react";
+import { Smartphone, Fingerprint, QrCode, ArrowRight } from "lucide-react";
 
+import { SUPPORT_EMAIL } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import {
   CardHeader,
@@ -15,16 +9,8 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { SpotlightCard } from "@/components/ui/spotlight-card";
+import { PixelCard } from "@/components/ui/pixel-card";
 import { Reveal } from "@/components/motion/reveal";
 import { RevealHeading } from "@/components/motion/reveal-heading";
 import { BlurLabel } from "@/components/motion/blur-label";
@@ -55,24 +41,6 @@ const CAPTURE_LAYER = [
     icon: QrCode,
     title: "Web kiosk / QR",
     detail: "A shared tablet at the entrance, for sites where staff don't carry a work phone.",
-  },
-] as const;
-
-const ROLES = [
-  {
-    role: "Staff",
-    can: "Clock in/out, see their own attendance and schedule, request leave",
-    cannot: "See other staff's records, edit schedules, or open the admin dashboard",
-  },
-  {
-    role: "Manager",
-    can: "Everything Staff can do, plus build shifts and approve leave — for their own site",
-    cannot: "See or manage other sites, change billing, or add devices",
-  },
-  {
-    role: "Admin",
-    can: "Full access across every site: staff, schedules, devices, billing, and reports",
-    cannot: "—",
   },
 ] as const;
 
@@ -142,8 +110,6 @@ export default function Home() {
         </section>
       </div>
 
-      <TrustBar />
-
       <FeatureClusters />
 
       {/* How it works / capture layer */}
@@ -153,70 +119,33 @@ export default function Home() {
         </RevealHeading>
         <Separator className="mt-4 mb-8" />
 
-        <div className="grid gap-4 md:grid-cols-3">
+        {/* The three capture methods are a comparison, so they stay side by
+            side and equal-height rather than becoming a stack or a carousel.
+            PixelCard replaces SpotlightCard here: the pixel fill radiates from
+            the centre on hover, which reads as the card responding rather than
+            a light passing over it. */}
+        <div className="grid items-stretch gap-4 md:grid-cols-3">
           {CAPTURE_LAYER.map(({ icon: Icon, title, detail }, i) => (
-            <Reveal key={title} delay={i * 0.08}>
-              <SpotlightCard className="h-full">
+            <Reveal key={title} delay={i * 0.08} className="h-full">
+              <PixelCard className="h-full">
                 <CardHeader>
-                  <Icon className="size-6 text-primary" strokeWidth={1.5} />
-                  <CardTitle className="mt-2">{title}</CardTitle>
+                  <span className="flex size-10 items-center justify-center rounded-sm border border-border bg-background/70 backdrop-blur-sm">
+                    <Icon className="size-5 text-primary" strokeWidth={1.5} />
+                  </span>
+                  <CardTitle className="mt-3 font-serif text-xl">
+                    {title}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <CardDescription>{detail}</CardDescription>
                 </CardContent>
-              </SpotlightCard>
+              </PixelCard>
             </Reveal>
           ))}
         </div>
       </section>
 
       <IndustryTabs />
-
-      {/* Access */}
-      <section id="access" className="mx-auto max-w-6xl px-6 py-16">
-        <RevealHeading className="font-serif text-3xl">
-          Who sees <span className="italic text-primary">what</span>
-        </RevealHeading>
-        <p className="mt-4 max-w-lg text-muted-foreground">
-          Every account only sees what it needs to. Access is set by role,
-          not by who remembered to ask.
-        </p>
-        <Separator className="mt-4 mb-8" />
-
-        <Reveal>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Role</TableHead>
-              <TableHead>Can do</TableHead>
-              <TableHead>Cannot do</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ROLES.map((r) => (
-              <TableRow key={r.role}>
-                <TableCell className="font-medium">{r.role}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  <span className="inline-flex items-start gap-2">
-                    <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                    {r.can}
-                  </span>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {r.cannot !== "—" && (
-                    <span className="inline-flex items-start gap-2">
-                      <X className="mt-0.5 size-3.5 shrink-0" />
-                      {r.cannot}
-                    </span>
-                  )}
-                  {r.cannot === "—" && r.cannot}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        </Reveal>
-      </section>
 
       <FAQ />
 
@@ -288,7 +217,7 @@ export default function Home() {
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="font-label text-muted-foreground">Email</dt>
-                <dd>hello@pac.africa</dd>
+                <dd>{SUPPORT_EMAIL}</dd>
               </div>
             </dl>
           </div>
@@ -296,6 +225,12 @@ export default function Home() {
           <ContactForm />
         </div>
       </section>
+
+      {/* Client band sits down here now, immediately above the footer. It used
+          to run directly under the hero, where it asked for trust before the
+          page had said what the product does. Near the bottom it reads as
+          corroboration of an argument already made. */}
+      <TrustBar />
 
       <SiteFooter />
     </div>

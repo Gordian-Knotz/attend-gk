@@ -18,6 +18,12 @@ const MOTION_TAG = {
  * this site is built around. This keeps the children as authored and
  * animates the heading as one block instead, so the effect reads the same
  * without costing the brand's signature device.
+ *
+ * The reduced-motion branch is gated on mount. A plain `<h2>` and a
+ * `motion.h2` carrying `initial` styles differ in their emitted attributes, so
+ * choosing between them during render from a browser-only value is a hydration
+ * mismatch — React #418, reported against HTML rather than text. Same fix as
+ * `blur-label.tsx` and `site/stat-value.tsx`; see doc 13.
  */
 export function RevealHeading({
   children,
@@ -31,9 +37,11 @@ export function RevealHeading({
   delay?: number;
 }) {
   const reduceMotion = useReducedMotion();
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
   const Tag = as;
 
-  if (reduceMotion) {
+  if (mounted && reduceMotion) {
     return <Tag className={className}>{children}</Tag>;
   }
 

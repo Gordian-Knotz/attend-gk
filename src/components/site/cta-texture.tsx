@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useReducedMotion } from "motion/react";
 
 import ShapeGrid from "@/components/reactbits/ShapeGrid";
@@ -20,7 +21,13 @@ import ShapeGrid from "@/components/reactbits/ShapeGrid";
 export function CtaTexture() {
   const reduceMotion = useReducedMotion();
 
-  if (reduceMotion) return null;
+  // Mount-gated, not decided during render: returning null on a reduced-motion
+  // client while the server emitted the grid is a hydration mismatch. Same
+  // shape as `hero-threads.tsx`, which already does this. See doc 13.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
+  if (mounted && reduceMotion) return null;
 
   return (
     <div

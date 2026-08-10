@@ -49,6 +49,11 @@ export default function Home() {
     <div className="min-h-screen">
       <SiteHeader />
 
+      {/* Everything between the header and the footer is one landmark. Without
+          it a screen-reader user has no "skip to content" target — the one
+          accessibility failure the 10 Aug Lighthouse run found. */}
+      <main>
+
       {/* Hero. Centred composition ported from attend-v3.
           The backdrop sits on this full-bleed wrapper, not on the max-w
           container below — inside it, the field would end in two hard
@@ -231,6 +236,7 @@ export default function Home() {
           page had said what the product does. Near the bottom it reads as
           corroboration of an argument already made. */}
       <TrustBar />
+      </main>
 
       <SiteFooter />
     </div>

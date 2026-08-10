@@ -344,27 +344,167 @@ section's, i.e. it really is near the bottom; three pixel canvases render; and
 all six protected routes redirect with a **middleware-encoded** `?next=`,
 including `/super`.
 
-### Not verified — and this is the line that matters
+## The browser pass — and the five bugs it found
 
-**None of the visual work has been in a browser.** Playwright isn't installed
-here, so what exists is HTML assertions and no pixels.
-[07](07-ui-motion-layer.md), [09](09-v3-hero-and-bento.md) and
-[12](12-platform-console-and-limits.md) each record a green build followed by
-real defects found on the first actual look — a clipped backdrop, an invisible
-CTA band, a middleware file that never compiled. Assume the same applies here.
+Playwright, `scripts/smoke.mjs`, against a production build: **1366×1000, 390×844
+and 320×844, in light and dark, plus a reduced-motion run and `/login`.
+99 checks, all passing at the end.** `npm i -D @playwright/test` was added for
+it, and the script is committed so this is repeatable rather than a one-off.
 
-The four things to look at first:
+It found real defects, on a build that was `tsc`/`lint`/`build` clean and
+already deployed. Fourth session running for that pattern.
 
-1. **`PixelCard` on paper.** Two inherited opacities have already needed
-   lowering on paper specifically (Aurora, then Threads). An orange pixel field
-   behind `CardDescription` is the same shape of problem, and the canvas is at
-   `opacity-70` on a guess.
-2. **The marquee** — seam at the wrap point, and whether 38s reads as calm or as
-   broken.
-3. **The employee sidebar at 390 and 320**, including whether `scroll-mt-20`
-   actually clears the sticky mobile rail.
-4. **`/admin/settings`** — four cards and a dialog, none of it looked at, and
-   the dialog is the piece most likely to overflow on a phone.
+### Reduced motion broke hydration in five components
 
-Everything behind auth — `/dashboard`, `/admin/settings`, `/super` — still needs
-a session, which is unchanged from [12](12-platform-console-and-limits.md).
+Emulating `prefers-reduced-motion: reduce` — which **no previous pass had ever
+done** — threw React error #418 on the landing page. The cause is one mistake
+made five times:
+
+```tsx
+const reduceMotion = useReducedMotion();
+if (reduceMotion) return <PlainThing />;   // ← decided during render
+return <AnimatedThing />;
+```
+
+`useReducedMotion()` can only know the answer in a browser. The server renders
+one tree and a reduced-motion client's first render produces a different one, so
+hydration mismatches. Affected: `motion/blur-label.tsx` and
+`site/stat-value.tsx` (text mismatches — BlurText's per-word spans versus a
+single text node, `<CountUp>` versus a bare string), then
+`site/cta-texture.tsx`, `site/feature-card.tsx` and `motion/reveal-heading.tsx`
+(HTML mismatches — `return null` versus a rendered grid, a different wrapper
+element, `motion.h2`'s `initial` attributes versus a plain `<h2>`).
+
+All five now gate the fallback on mount, so the first client render always
+matches the server's and the swap happens a tick later:
+
+```tsx
+const [mounted, setMounted] = React.useState(false);
+React.useEffect(() => setMounted(true), []);
+if (mounted && reduceMotion) return <PlainThing />;
+```
+
+`site/hero-threads.tsx` already did exactly this, for the adjacent reason that a
+WebGL context shouldn't block first paint — the pattern was in the codebase and
+just hadn't been applied to its siblings. `motion/reveal.tsx` was given the same
+treatment; it turned out not to be a contributor, but it has the same shape and
+the guard costs nothing.
+
+**Worth generalising:** any component that branches on a browser-only value —
+motion preference, viewport, `localStorage`, theme — must not decide during
+render. And a whole category of bug hides behind an emulation flag nobody has
+turned on: this one had been live since 6 August.
+
+### Two of the failures were the test's fault, not the app's
+
+Recorded because both produce a completely convincing false negative:
+
+- **`page.mouse.move()` takes viewport coordinates.** The client band sits ~8,200px
+  down the document; a `boundingBox()` from an unscrolled page put the pointer
+  nowhere, so "marquee pauses on hover" and "pixels paint on hover" both failed
+  while working perfectly.
+- **`locator.hover()` waits for the element to be *stable*, and a marquee never
+  stops moving.** It times out rather than hovering. The fix is to hover the
+  static mask around it; the pointer still lands over the moving track, which is
+  all `:hover` needs.
+
+Both are now handled by `hoverCentre()` in the script, with the reasoning
+attached so the next person doesn't rediscover them.
+
+### What the pass confirmed
+
+- **`PixelCard` paints, and it's a dusting rather than a slab** — 11.0–11.3% of
+  the canvas at full spread, element opacity 0.7, consistent across both themes
+  and all three widths. That was the open worry: doc 09 had to lower an
+  inherited opacity on paper twice, so this one was measured rather than
+  eyeballed.
+- No horizontal overflow at any width in either theme.
+- No headings stuck below full opacity (measured *after* scrolling — the trap
+  docs 07 and 12 both hit).
+- The client band really does sit below the contact section (byte offsets and
+  bounding boxes agree), its duplicate name set is `aria-hidden`, and under
+  reduced motion the animation is off and the duplicate is `display: none`.
+- Console clean everywhere, excluding a headless-GPU `ReadPixels` warning from
+  the WebGL hero, which is environmental.
+
+## Lighthouse
+
+Desktop preset, production build:
+
+| Category | Score |
+|---|---|
+| Performance | **72** |
+| Accessibility | **100** |
+| Best practices | **100** |
+| SEO | **100** |
+
+Accessibility was 99 until the landing page got a `<main>` landmark — without
+one there is no skip-to-content target. One-line fix, and the only a11y failure
+in the report.
+
+**Performance is 72, and the reason is unambiguous: JavaScript execution, not
+payload.**
+
+| Metric | Value |
+|---|---|
+| First contentful paint | 0.6 s |
+| Largest contentful paint | 1.4 s |
+| Cumulative layout shift | **0** |
+| Speed index | 1.5 s |
+| **Total blocking time** | **600 ms** |
+| Main-thread work | 2.8 s |
+| Script bootup | 1.6 s |
+
+Paint and stability are genuinely good. What costs the score is 600 ms of
+blocking time from ~1.6 s of script bootup. Unused JavaScript is only 48 KiB —
+this is not a bundle-size problem that code-splitting fixes.
+
+The cause is the motion layer, which doc 07 records as a deliberate choice:
+*"Chosen intensity: **expressive**. Scope: **everywhere**."* On `/` that means
+`ogl` running a WebGL shader behind the hero, gsap ScrollTrigger instantiated per
+`Reveal`, `motion` for the headings and counters, and a second canvas grid behind
+the CTA band. Every one of those is doing exactly what it was asked to.
+
+So **making this faster is a design decision, not a refactor** — and doc 07
+already wrote the menu, in its "Dialling it back" section. In rough order of
+milliseconds-per-unit-of-regret:
+
+1. **Drop `CtaTexture`.** A second animated canvas, behind a band most visitors
+   scroll past. Doc 07 notes the `dark:bg-pac-graphite` on that section is a
+   contrast fix and must stay regardless.
+2. **Skip the WebGL hero below some width.** `Threads` is the single largest
+   cost and mobile is where the CPU is weakest. It already declines to render
+   under reduced motion and mounts only after hydration; a width check is the
+   same one-line shape.
+3. **Make `Reveal` CSS-driven** rather than one gsap ScrollTrigger per instance.
+   An `IntersectionObserver` plus a transition would cover what these actually
+   do and would let `gsap` leave the landing bundle.
+4. **Only then** look at bundle splitting, which the numbers say is not the
+   problem.
+
+None of that was done here: it trades away the visual identity the last three
+sessions deliberately built, and that call belongs to whoever owns the brand, not
+to a session tidying up at the end of the night. **Measured, named, and left.**
+
+### Still not verified
+
+The browser pass covers **public routes only**. Everything behind auth is still
+unrendered, because it needs a real Supabase session:
+
+- **`/dashboard` with the new sidebar.** The scroll-spy, the sliding highlight,
+  the mobile rail, and whether `scroll-mt-20` actually clears that rail on an
+  anchor jump — all unlooked-at.
+- **`/admin/settings`.** Four cards and a dialog. The dialog is the piece most
+  likely to overflow on a phone.
+- **`/super`**, still never rendered once.
+- `/admin` as the real page, `/checkin`, `/onboarding`.
+
+Doc 09 has the pattern for closing this without touching production data: it
+verified the bento through a temporary `/bento-check` route rendering the same
+components with fixture data, then deleted the route. That is the cheap way to
+see the sidebar and the settings layout. The alternative — creating a throwaway
+account on the live project — writes real rows into a real tenant's database and
+should be a deliberate decision, not a side effect of a test.
+
+Also still open: a suspend/restore round trip on a scratch org, and that a
+~20-punch offline-queue drain doesn't trip the attendance limiter.

@@ -54,12 +54,23 @@ Migrations **0001–0011 are all applied** to the live Supabase project.
 > which backs the contact form's fallback and the suspension notice.
 > See [13](13-railway-rename-and-product-work.md).
 
-> **The newest visual work has not been in a browser.** The rename, the
-> employee sidebar, Settings, the marquee and `PixelCard` are all build-clean
-> and unlooked-at; Playwright isn't installed on this machine. Docs 07, 09 and
-> 12 each record a green build followed by real defects on the first look. The
-> four things to check first are listed at the end of
+> **The public routes have had a browser pass: `npm run smoke`.** 99 checks at
+> three widths in both themes, plus reduced motion. It found **five hydration
+> mismatches** (React #418) caused by five components deciding a reduced-motion
+> fallback *during render* — live since 6 Aug, invisible until someone finally
+> emulated the preference. All fixed by gating on mount. Full account in
 > [13](13-railway-rename-and-product-work.md).
+>
+> **Everything behind auth is still unrendered** — `/dashboard` with its new
+> sidebar, `/admin/settings`, `/super`. Doc 09's fixture-route trick is the way
+> to see those without writing rows into the live project.
+
+> **Lighthouse: performance 72, accessibility 100, best practices 100, SEO 100.**
+> Paint is fine (FCP 0.6s, LCP 1.4s, CLS 0); the score is held down by **600 ms
+> of blocking time from 1.6 s of script bootup** — the motion layer, not the
+> bundle. Unused JS is only 48 KiB, so code-splitting is not the fix. Making it
+> faster means dialling back WebGL/gsap, which is a brand decision; the options
+> are ranked at the end of [13](13-railway-rename-and-product-work.md).
 
 > **Read this first if you read nothing else.** The browser pass found that
 > **`middleware.ts` had never run** — it sat at the repository root while the

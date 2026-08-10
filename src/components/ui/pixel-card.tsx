@@ -161,6 +161,25 @@ export function PixelCard({
 }: React.ComponentProps<"div">) {
   const reduceMotion = useReducedMotion();
 
+  /**
+   * The canvas is added **after** hydration, never in the server output.
+   *
+   * `useReducedMotion()` can only know the user's preference in the browser, so
+   * a component that branches on it renders one tree on the server and possibly
+   * a different one on the first client render — which React 19 reports as
+   * hydration error #418. The browser pass caught exactly that under
+   * `prefers-reduced-motion: reduce`.
+   *
+   * Mount-gating makes the first client render identical to the server's for
+   * every user, and the canvas appears a tick later only where it's wanted.
+   * `site/hero-backdrop.tsx` already does this, for the adjacent reason that a
+   * WebGL context shouldn't block first paint.
+   */
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
+  const animated = mounted && !reduceMotion;
+
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const pixelsRef = React.useRef<Pixel[]>([]);
@@ -171,7 +190,7 @@ export function PixelCard({
     "bg-card text-card-foreground border border-border rounded-sm flex flex-col gap-4 py-5";
 
   React.useEffect(() => {
-    if (reduceMotion) return;
+    if (!animated) return;
 
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -222,7 +241,7 @@ export function PixelCard({
       observer.disconnect();
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     };
-  }, [reduceMotion]);
+  }, [animated]);
 
   const animate = React.useCallback((mode: "appear" | "disappear") => {
     const step = () => {
@@ -256,38 +275,34 @@ export function PixelCard({
     frameRef.current = requestAnimationFrame(step);
   }, []);
 
-  if (reduceMotion) {
-    return (
-      <div className={cn(shell, className)} {...props}>
-        {children}
-      </div>
-    );
-  }
-
   return (
     <div
       ref={containerRef}
       className={cn(shell, "relative isolate overflow-hidden", className)}
-      onMouseEnter={() => animate("appear")}
-      onMouseLeave={() => animate("disappear")}
+      onMouseEnter={animated ? () => animate("appear") : undefined}
+      onMouseLeave={animated ? () => animate("disappear") : undefined}
       // Keyboard parity: the card itself isn't focusable, so the reveal is
       // driven by focus moving to anything inside it. `relatedTarget` guards
       // against re-triggering when focus moves between two children.
       onFocus={(e) => {
+        if (!animated) return;
         if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
         animate("appear");
       }}
       onBlur={(e) => {
+        if (!animated) return;
         if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
         animate("disappear");
       }}
       {...props}
     >
-      <canvas
-        ref={canvasRef}
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 size-full opacity-70"
-      />
+      {animated && (
+        <canvas
+          ref={canvasRef}
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 size-full opacity-70"
+        />
+      )}
       {children}
     </div>
   );

@@ -30,7 +30,14 @@ export function Reveal({
 }) {
   const reduceMotion = useReducedMotion();
 
-  if (reduceMotion) {
+  // Gated on mount, like the other three motion wrappers. `AnimatedContent`
+  // and this plain div do not emit identical markup, so picking between them
+  // during render from a browser-only value is a hydration mismatch under
+  // `prefers-reduced-motion`. See doc 13.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
+  if (mounted && reduceMotion) {
     return <div className={className}>{children}</div>;
   }
 

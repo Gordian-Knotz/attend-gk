@@ -28,13 +28,18 @@ export function FeatureCard({
   className?: string;
 }) {
   const reduceMotion = useReducedMotion();
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
 
   const surface = cn(
     "rounded-sm border border-border bg-card transition-colors duration-300 hover:border-primary/40",
     className
   );
 
-  if (reduceMotion) {
+  // Mount-gated — see doc 13. The GlareHover branch and this plain div do not
+  // emit the same markup, so branching during render is a hydration mismatch
+  // under `prefers-reduced-motion`.
+  if (mounted && reduceMotion) {
     return <div className={cn(surface, "p-7")}>{children}</div>;
   }
 

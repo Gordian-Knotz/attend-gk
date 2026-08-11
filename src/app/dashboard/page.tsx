@@ -140,7 +140,13 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className="flex min-h-screen bg-secondary/20">
+    // Only a row from md up. The sidebar and the mobile rail are siblings, so
+    // an unconditional `flex` made the rail a flex ITEM of the row: at mobile it
+    // sat *beside* the content instead of above it, pushing everything one full
+    // viewport to the right (627px of content in a 390px window) and stretching
+    // its active-item highlight down the whole page as a full-height orange bar.
+    // Below md this is a block, so the rail is a normal sticky bar on top.
+    <div className="min-h-screen bg-secondary/20 md:flex">
       <EmployeeSidebar siteName={site?.name ?? null} />
 
       {/* min-w-0 so a wide child (the history rows) shrinks instead of pushing

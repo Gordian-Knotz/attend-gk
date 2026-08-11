@@ -87,16 +87,23 @@ export default async function LeavePage() {
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
-          {entitlementsFailed ? (
+          {leaveFailed ? (
+            // Checked first, ahead of `entitlementsFailed`: when the
+            // requests read has failed we cannot claim "your requests are
+            // listed below and are unaffected" — they are not. That claim is
+            // only true when this branch is false, so it must not be
+            // reachable when it isn't. A failed history read is also the
+            // more actionable fact here, and the requests card immediately
+            // below is already showing its own error for this same read.
+            <Callout variant="note" label="Can't compute balance">
+              Your leave history couldn&apos;t be loaded, so this year&apos;s
+              balance can&apos;t be worked out right now. Reload the page to
+              try again.
+            </Callout>
+          ) : entitlementsFailed ? (
             <Callout variant="note" label="Balances unavailable">
               Leave balances aren&apos;t set up on this organization yet. Your
               requests are listed below and are unaffected.
-            </Callout>
-          ) : leaveFailed ? (
-            <Callout variant="note" label="Can't compute balance">
-              Your leave history couldn&apos;t be loaded, so this year&apos;s
-              balance can&apos;t be worked out right now. Your entitlements
-              are unaffected — reload the page to try again.
             </Callout>
           ) : (
             balances.map((b) => (

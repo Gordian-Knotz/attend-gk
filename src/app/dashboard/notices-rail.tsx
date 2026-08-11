@@ -40,12 +40,22 @@ export async function NoticesRail() {
       .eq("employee_id", employee.id),
   ]);
 
-  const failed = Boolean(noticesRes.error || dismissedRes.error);
+  // These two failures mean different things and are shown differently below:
+  // if the notices read itself failed, nothing can be said about notices at
+  // all. If only the dismissals read failed, the notices are known but which
+  // of them were dismissed is not — showing them unfiltered is defensible,
+  // silently treating "unknown" as "none dismissed" is not.
+  const noticesFailed = Boolean(noticesRes.error);
+  const dismissalsFailed = Boolean(dismissedRes.error);
 
   const dismissed = new Set(
     (dismissedRes.data ?? []).map((d) => d.notification_id)
   );
-  const notices = (noticesRes.data ?? []).filter((n) => !dismissed.has(n.id));
+  const notices = noticesFailed
+    ? []
+    : dismissalsFailed
+      ? (noticesRes.data ?? [])
+      : (noticesRes.data ?? []).filter((n) => !dismissed.has(n.id));
 
   return (
     <Card>
@@ -56,15 +66,23 @@ export async function NoticesRail() {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {/* A failed read must not render as an empty rail: an empty rail says
-            "no announcements", which is a claim, not an absence of data. */}
-        {failed && (
+        {/* Three distinct states, three distinct claims. Never let the "don't
+            assume there are none" copy sit above a rendered list — when
+            noticesFailed is true, `notices` is always empty, so the list
+            below is a no-op in that branch. */}
+        {noticesFailed && (
           <p className="text-sm text-destructive">
             Couldn&apos;t load notices. Reload — don&apos;t assume there are none.
           </p>
         )}
 
-        {!failed && notices.length === 0 && (
+        {!noticesFailed && dismissalsFailed && notices.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            Showing all notices; couldn&apos;t check which you&apos;ve dismissed.
+          </p>
+        )}
+
+        {!noticesFailed && notices.length === 0 && (
           <p className="py-4 text-sm text-muted-foreground">
             Nothing from your manager right now.
           </p>

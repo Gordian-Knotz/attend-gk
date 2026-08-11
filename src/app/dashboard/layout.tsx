@@ -101,7 +101,10 @@ export default async function DashboardLayout({
               fix. */}
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
             <div className="min-w-0 flex-1">{children}</div>
-            <aside className="w-full shrink-0 lg:sticky lg:top-6 lg:w-72">
+            <aside
+              aria-label="Notices"
+              className="w-full shrink-0 lg:sticky lg:top-6 lg:w-72"
+            >
               <NoticesRail />
             </aside>
           </div>

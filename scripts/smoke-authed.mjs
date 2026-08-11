@@ -54,7 +54,15 @@ const MATRIX = [
 const ROUTES = [
   { path: "/dashboard/shifts", expect: /upcoming shifts/i, nav: "Shifts" },
   { path: "/dashboard/attendance", expect: /attendance history/i, nav: "History" },
-  { path: "/dashboard/leave", expect: /leave/i, nav: "Leave" },
+  // Not /leave/i: EmployeeSidebar renders the literal nav label "Leave" on
+  // every dashboard route (desktop aside and mobile rail alike), so that
+  // regex would pass here even if navigation silently failed and the
+  // browser never left the previous route. "Leave balances" is the page's
+  // own footnote, present regardless of whether the person has any leave
+  // rows — genuinely unique to this page. No apostrophe in the regex: the
+  // JSX writes `&apos;` but `innerText` yields a real `'` character, so
+  // matching past it rather than through it avoids an encoding trap.
+  { path: "/dashboard/leave", expect: /leave balances/i, nav: "Leave" },
 ];
 
 let failures = 0;
@@ -98,6 +106,53 @@ for (const entry of MATRIX) {
   console.log(`\n── ${theme} / ${label} ${w}×${h}`);
 
   const { context, page, messages } = await signIn(browser, entry);
+
+  // The rail and the sidebar are two different <aside> elements once the
+  // notices rail ships. `document.querySelector("aside")` used lower down
+  // deliberately resolves to the sidebar, because it is first in DOM order —
+  // the rail lives inside <main>, so it must be queried scoped to that, or
+  // this silently re-measures the sidebar and passes for the wrong reason.
+  //
+  // Called once for /dashboard and once per route in the ROUTES loop below,
+  // so the rail is actually checked everywhere it is claimed to be, not just
+  // on whichever route the loop happens to end on.
+  async function checkRail(path) {
+    const rail = await page.evaluate(() => {
+      const main = document.querySelector("main");
+      const aside = main?.querySelector("aside");
+      if (!aside) return null;
+      const a = aside.getBoundingClientRect();
+      const content = main.querySelector("div > div");
+      const c = content ? content.getBoundingClientRect() : null;
+      return {
+        top: Math.round(a.top),
+        left: Math.round(a.left),
+        contentTop: c ? Math.round(c.top) : null,
+        contentLeft: c ? Math.round(c.left) : null,
+      };
+    });
+    report(rail !== null, `${path} notices rail is present`);
+    if (rail && w < 1024) {
+      // The regression this guards against is `lg:flex-row` losing its
+      // `lg:` prefix, so the rail sits BESIDE the content below `lg` instead
+      // of below it. Side-by-side means equal tops — a `>=` comparison
+      // would pass on that equality and never catch the bug it exists for.
+      // Strict `>` on top, plus an equal-left check (stacked children share
+      // a left edge; side-by-side children do not), together distinguish
+      // "below" from "beside." Both numbers are printed so a failure is
+      // diagnosable without a rerun.
+      report(
+        rail.contentTop !== null && rail.top > rail.contentTop,
+        `${path} under lg the rail is strictly below the content`,
+        `rail.top=${rail.top} content.top=${rail.contentTop}`
+      );
+      report(
+        rail.contentLeft !== null && rail.left === rail.contentLeft,
+        `${path} under lg the rail shares the content's left edge, not offset beside it`,
+        `rail.left=${rail.left} content.left=${rail.contentLeft}`
+      );
+    }
+  }
 
   const onDashboard = page.url().includes("/dashboard");
   report(onDashboard, "signed in and reached /dashboard", page.url());
@@ -164,6 +219,10 @@ for (const entry of MATRIX) {
     );
   }
 
+  // The rail is part of the layout, so /dashboard itself gets it too — not
+  // just the three routes below.
+  await checkRail("/dashboard");
+
   // The other three staff routes. Each owns its own content and its own
   // failure state (doc 11), and the sidebar's active item must follow the
   // URL rather than staying wherever it was on sign-in.
@@ -189,29 +248,8 @@ for (const entry of MATRIX) {
       c: document.documentElement.clientWidth,
     }));
     report(of2.s <= of2.c, `${r.path} no horizontal overflow`, `${of2.s} <= ${of2.c}`);
-  }
 
-  // The rail and the sidebar are two different <aside> elements once the
-  // notices rail ships. `document.querySelector("aside")` above deliberately
-  // resolves to the sidebar, because it is first in DOM order — the rail
-  // lives inside <main>, so it must be queried scoped to that, or this
-  // silently re-measures the sidebar and passes for the wrong reason.
-  const rail = await page.evaluate(() => {
-    const main = document.querySelector("main");
-    const aside = main?.querySelector("aside");
-    if (!aside) return null;
-    const a = aside.getBoundingClientRect();
-    const content = main.querySelector("div > div");
-    const c = content ? content.getBoundingClientRect() : null;
-    return { top: Math.round(a.top), left: Math.round(a.left), contentTop: c ? Math.round(c.top) : null };
-  });
-  report(rail !== null, "notices rail is present on this route");
-  if (rail && w < 1024) {
-    report(
-      rail.contentTop !== null && rail.top >= rail.contentTop,
-      "under lg the rail is below the content, not beside it",
-      JSON.stringify(rail)
-    );
+    await checkRail(r.path);
   }
 
   report(

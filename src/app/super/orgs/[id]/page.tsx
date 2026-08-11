@@ -41,9 +41,9 @@ const BILLING_LABEL: Record<string, string> = {
  * adds no check of its own by design — a fourth copy would be a fourth thing
  * to keep in sync.
  *
- * The select lists below deliberately omit the two columns the platform
- * console must never surface (see `TenantEmployee` in `@/lib/tenant-summary`).
- * A column that never leaves Postgres cannot leak through a prop.
+ * The select lists below deliberately omit `pay_rate` and `employment_type`
+ * from the `select` string itself, not from the markup — a column that
+ * never leaves Postgres cannot leak through a serialized prop.
  */
 export default async function TenantDetailPage({
   params,

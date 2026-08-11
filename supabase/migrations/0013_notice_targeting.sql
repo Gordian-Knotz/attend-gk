@@ -15,6 +15,14 @@
 --    an organization or one site — not to a role.
 --
 -- Re-runnable throughout, like 0008-0012.
+--
+-- Wrapped in a transaction: the Supabase CLI already runs migrations inside
+-- one, but the dashboard SQL editor does not. Without begin/commit, a
+-- hand-run interrupted between the `drop policy` and the `create policy`
+-- that replaces it would leave notices admin-only until someone re-ran the
+-- file.
+
+begin;
 
 -- ── 1. Author and role targeting ────────────────────────────────────────
 --
@@ -46,6 +54,14 @@ create table if not exists notification_dismissals (
 
 alter table notification_dismissals enable row level security;
 
+-- The primary key is (notification_id, employee_id), with employee_id as the
+-- *second* column — a lookup that filters on employee_id alone (the rail's
+-- dismissals read, and the self-read/self-update policies below) cannot use
+-- that index and falls back to a sequential scan of the whole table on every
+-- dashboard render.
+create index if not exists idx_notification_dismissals_employee
+  on notification_dismissals (employee_id);
+
 -- Self only, for both read and write. An employee's dismissals are nobody
 -- else's business, and letting one person write another's dismissal would let a
 -- manager silence a notice on staff's behalf.
@@ -55,6 +71,18 @@ create policy "dismissals: self read" on notification_dismissals for select
 
 drop policy if exists "dismissals: self insert" on notification_dismissals;
 create policy "dismissals: self insert" on notification_dismissals for insert
+  with check (employee_id = auth.uid());
+
+-- dismissNoticeForSelf() upserts (onConflict: notification_id,employee_id) so
+-- that re-dismissing an already-dismissed notice is a no-op instead of a
+-- unique-violation. PostgREST turns that upsert into
+-- `insert ... on conflict do update`, and Postgres checks the ON CONFLICT DO
+-- UPDATE branch against the table's UPDATE policies, not its INSERT policies.
+-- Without this policy, a second dismissal of the same notice by the same
+-- person 42501s.
+drop policy if exists "dismissals: self update" on notification_dismissals;
+create policy "dismissals: self update" on notification_dismissals for update
+  using (employee_id = auth.uid())
   with check (employee_id = auth.uid());
 
 drop policy if exists "dismissals: self delete" on notification_dismissals;
@@ -71,6 +99,15 @@ create policy "dismissals: self delete" on notification_dismissals for delete
 -- `for all`, which includes select, and RLS policies are OR'd — so org_admin
 -- keeps seeing every notice in their org through that policy. It does correctly
 -- narrow managers, who only reach the manage policy for their own site.
+--
+-- That manage policy is also unconditioned on target_role, though, which cuts
+-- the other way: a manager reads any notice pinned to their own site through
+-- it regardless of target_role — including one addressed to org_admin only.
+-- This policy (select in org) never gets a chance to narrow that case, because
+-- policies are OR'd and the manage policy already grants it. That is intended
+-- here, not an oversight: a manager can delete any notice pinned to their own
+-- site (see "admins manage" in 0006), so letting them read those same notices
+-- is no wider than what they can already do to them.
 
 drop policy if exists "notifications: select in org" on notifications;
 create policy "notifications: select in org" on notifications for select
@@ -92,3 +129,5 @@ create policy "notifications: select in org" on notifications for select
 -- PostgREST serves a cached schema and 404s new columns and tables until it
 -- refreshes, which looks exactly like the migration not having run.
 notify pgrst, 'reload schema';
+
+commit;

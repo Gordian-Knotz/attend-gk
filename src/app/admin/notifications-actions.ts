@@ -8,10 +8,15 @@ import { getEmployeeContext } from "@/lib/supabase/employee";
 const LEVELS = ["info", "warning", "critical"] as const;
 export type NoticeLevel = (typeof LEVELS)[number];
 
+// super_admin is deliberately not targetable — it is the vendor's own role,
+// not a tenant audience.
+const TARGET_ROLES = ["staff", "manager", "org_admin"] as const;
+
 export async function postNotice(input: {
   message: string;
   level: string;
   siteId: string | null;
+  targetRole: string | null;
 }) {
   const employee = await getEmployeeContext();
   if (!employee || employee.role === "staff") {
@@ -28,6 +33,13 @@ export async function postNotice(input: {
     ? (input.level as NoticeLevel)
     : "info";
 
+  // Validated against an allow-list, not trusted. A server action is a public
+  // HTTP endpoint; the TypeScript signature is documentation, not a control.
+  const targetRole =
+    input.targetRole && (TARGET_ROLES as readonly string[]).includes(input.targetRole)
+      ? input.targetRole
+      : null;
+
   // Managers can only post to their own site — RLS enforces this too, but
   // pinning it here gives a clear error instead of an opaque policy failure.
   const siteId =
@@ -43,6 +55,8 @@ export async function postNotice(input: {
     site_id: siteId,
     message,
     level,
+    author_id: employee.id,
+    target_role: targetRole,
   });
 
   if (error) return { error: error.message };
@@ -51,17 +65,51 @@ export async function postNotice(input: {
   return { success: true as const };
 }
 
-export async function dismissNotice(noticeId: string) {
+/**
+ * Removes a notice for everyone. This is what the old single dismiss action
+ * actually did, while being labelled "Dismiss" — so it is now named for its
+ * effect and restricted to the people entitled to retract an announcement.
+ */
+export async function deleteNotice(noticeId: string) {
   const employee = await getEmployeeContext();
   if (!employee || employee.role === "staff") {
-    return { error: "Only managers and admins can dismiss notices." };
+    return { error: "Only managers and admins can delete notices." };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("notifications").delete().eq("id", noticeId);
+  const query = supabase.from("notifications").delete({ count: "exact" }).eq("id", noticeId);
+  if (employee.role !== "super_admin") {
+    query.eq("org_id", employee.orgId);
+  }
+
+  const { error, count } = await query;
+  if (error) return { error: error.message };
+  if (!count) return { error: "Notice not found, or you can't delete it." };
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  return { success: true as const };
+}
+
+/**
+ * Hides a notice for the caller alone. Available to everyone, staff included —
+ * clearing your own board is not an administrative act.
+ */
+export async function dismissNoticeForSelf(noticeId: string) {
+  const employee = await getEmployeeContext();
+  if (!employee) return { error: "You need to be signed in." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("notification_dismissals")
+    .upsert(
+      { notification_id: noticeId, employee_id: employee.id },
+      { onConflict: "notification_id,employee_id" }
+    );
 
   if (error) return { error: error.message };
 
+  revalidatePath("/dashboard");
   revalidatePath("/admin");
   return { success: true as const };
 }

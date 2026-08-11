@@ -4,24 +4,31 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { X, Loader2 } from "lucide-react";
 
-import { dismissNotice } from "./notifications-actions";
+import { deleteNotice } from "./notifications-actions";
 import { Button } from "@/components/ui/button";
 
-export function DismissNoticeButton({ noticeId }: { noticeId: string }) {
+export function DeleteNoticeButton({ noticeId }: { noticeId: string }) {
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
 
   async function handleClick() {
+    // This removes the notice for the whole organization, not just this
+    // screen — worth a confirm now that "dismiss" (hide for me) is a
+    // separate, unconfirmed action elsewhere.
+    if (!window.confirm("Delete this notice for everyone? This can't be undone.")) {
+      return;
+    }
+
     setLoading(true);
     try {
-      const result = await dismissNotice(noticeId);
+      const result = await deleteNotice(noticeId);
       if (result?.error) {
         window.alert(result.error);
         return;
       }
       router.refresh();
     } catch {
-      window.alert("Couldn't dismiss the notice. Please try again.");
+      window.alert("Couldn't delete the notice. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -32,7 +39,7 @@ export function DismissNoticeButton({ noticeId }: { noticeId: string }) {
       variant="ghost"
       size="icon"
       className="size-7 shrink-0"
-      aria-label="Dismiss notice"
+      aria-label="Delete notice"
       onClick={handleClick}
       disabled={loading}
     >

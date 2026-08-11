@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Megaphone } from "lucide-react";
 
 import { postNotice } from "./notifications-actions";
+import { describeAudience } from "@/lib/notice-audience";
 import { useAdminIdentity } from "@/components/admin/identity-context";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -39,6 +40,7 @@ export function PostNoticeDialog({
   const [error, setError] = React.useState<string | null>(null);
   const [level, setLevel] = React.useState("info");
   const [siteId, setSiteId] = React.useState("all");
+  const [targetRole, setTargetRole] = React.useState("all");
 
   const isManager = role === "manager";
 
@@ -52,6 +54,7 @@ export function PostNoticeDialog({
       message: String(form.get("message") ?? ""),
       level,
       siteId: siteId === "all" ? null : siteId,
+      targetRole: targetRole === "all" ? null : targetRole,
     });
 
     setLoading(false);
@@ -63,6 +66,7 @@ export function PostNoticeDialog({
 
     setLevel("info");
     setSiteId("all");
+    setTargetRole("all");
     setOpen(false);
     router.refresh();
   }
@@ -129,7 +133,35 @@ export function PostNoticeDialog({
                 </Select>
               </div>
             )}
+
+            {/* Managers may target any role — just not any site, which is
+                pinned to their own above. */}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="target-role">Role</Label>
+              <Select value={targetRole} onValueChange={setTargetRole}>
+                <SelectTrigger id="target-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="manager">Managers</SelectItem>
+                  <SelectItem value="org_admin">Admins</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            Goes to{" "}
+            <span className="font-medium text-foreground">
+              {describeAudience({
+                siteName: siteId === "all" ? null : sites.find((s) => s.id === siteId)?.name ?? null,
+                targetRole: targetRole === "all" ? null : targetRole,
+              })}
+            </span>
+            .
+          </p>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 

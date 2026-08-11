@@ -10,8 +10,9 @@ import {
 } from "@/lib/attendance-series";
 import { formatDate, formatTime, wallClockIn } from "@/lib/timezone";
 import { AttendanceTrendChart } from "@/components/charts/attendance-trend-chart";
+import { describeAudience } from "@/lib/notice-audience";
 import { PostNoticeDialog } from "./notice-dialog";
-import { DismissNoticeButton } from "./dismiss-notice-button";
+import { DeleteNoticeButton } from "./dismiss-notice-button";
 import { PageHeader } from "@/components/admin/page-header";
 import { Callout } from "@/components/callout";
 import { StatValue } from "@/components/site/stat-value";
@@ -107,7 +108,7 @@ export default async function AdminOverviewPage() {
         .gte("end_date", windowStartDateStr),
       supabase
         .from("notifications")
-        .select("id, message, level, site_id, created_at")
+        .select("id, message, level, site_id, created_at, author_id, target_role")
         .eq("org_id", identity.orgId)
         .order("created_at", { ascending: false })
         .limit(5),
@@ -117,12 +118,17 @@ export default async function AdminOverviewPage() {
   // `?? []` fallbacks, so a database outage rendered as an empty org —
   // "No staff yet", every KPI zero. That reads as a first-run onboarding
   // state, which is the most misleading thing it could have said.
+  //
+  // Notices are deliberately excluded from this list: migration 0013 added
+  // author_id and target_role, and until an operator runs it, selecting
+  // those columns 404s. That failure belongs to the Notices card alone —
+  // taking down the whole page over a card that has a perfectly good empty
+  // state would be a regression for a page that otherwise still works.
   const loadError =
     sitesRes.error ??
     workforceRes.error ??
     eventsRes.error ??
-    leaveRes.error ??
-    noticesRes.error;
+    leaveRes.error;
 
   if (loadError) {
     return (
@@ -138,9 +144,10 @@ export default async function AdminOverviewPage() {
   const { data: workforce } = workforceRes;
   const { data: windowEvents } = eventsRes;
   const { data: leaveRows } = leaveRes;
-  const { data: notices } = noticesRes;
+  const { data: notices, error: noticesError } = noticesRes;
 
   const siteNameById = new Map((sites ?? []).map((s) => [s.id, s.name]));
+  const employeeNameById = new Map((workforce ?? []).map((e) => [e.id, e.full_name]));
 
   const todaysEvents = (windowEvents ?? []).filter(
     (ev) => localDateKey(new Date(ev.occurred_at)) === todayDateStr
@@ -373,7 +380,13 @@ export default async function AdminOverviewPage() {
             <CardTitle>Notices</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col">
-            {(notices ?? []).length === 0 ? (
+            {noticesError ? (
+              <Callout variant="note" label="Notices unavailable">
+                Notices couldn&apos;t be loaded. If this persists after a
+                reload, the notice-targeting migration may not have run yet —
+                check with whoever manages the database.
+              </Callout>
+            ) : (notices ?? []).length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-6 text-center">
                 <BellOff className="size-5 text-muted-foreground" strokeWidth={1.5} />
                 <p className="text-sm text-muted-foreground">
@@ -396,15 +409,20 @@ export default async function AdminOverviewPage() {
                       <span className="font-mono text-[10px] text-muted-foreground">
                         {formatDate(notice.created_at)}
                       </span>
-                      {notice.site_id && (
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          {siteNameById.get(notice.site_id) ?? "Unknown site"}
-                        </span>
-                      )}
                     </div>
                     <p className="mt-1.5 text-sm">{notice.message}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {describeAudience({
+                        siteName: notice.site_id ? siteNameById.get(notice.site_id) ?? null : null,
+                        targetRole: notice.target_role ?? null,
+                      })}
+                      {" · "}
+                      {notice.author_id
+                        ? `Posted by ${employeeNameById.get(notice.author_id) ?? "someone no longer on the roster"}`
+                        : "Posted before authors were recorded"}
+                    </p>
                   </div>
-                  <DismissNoticeButton noticeId={notice.id} />
+                  <DeleteNoticeButton noticeId={notice.id} />
                 </div>
               ))
             )}

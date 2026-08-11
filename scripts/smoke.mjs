@@ -42,6 +42,18 @@ async function openPage(browser, { theme, reducedMotion = "no-preference" }) {
     colorScheme: theme,
     reducedMotion,
   });
+  // colorScheme above is cosmetic as far as this app is concerned:
+  // layout.tsx configures next-themes with enableSystem={false}, so the OS/
+  // emulated preference is never consulted. next-themes reads its choice
+  // from localStorage["theme"] instead, and it does that read on first
+  // mount — before React has committed a single node — so the value has to
+  // be there before the app's own scripts run. addInitScript executes on
+  // every subsequent navigation before any page script, which is exactly
+  // that window; setting it after goto() would just race a paint that has
+  // already happened.
+  await context.addInitScript((t) => {
+    window.localStorage.setItem("theme", t);
+  }, theme);
   const page = await context.newPage();
 
   const console_ = [];
@@ -71,6 +83,27 @@ async function hoverCentre(page, selector) {
   return true;
 }
 
+/**
+ * Confirm the app actually rendered in the requested theme, rather than
+ * trusting that setting localStorage["theme"] before load was enough. This
+ * is the one check standing between us and a repeat of the bug where every
+ * "dark" and "light" run silently rendered the same theme and nothing
+ * caught it for 99 checks running.
+ */
+async function assertTheme(page, theme) {
+  const state = await page.evaluate(() => ({
+    classList: [...document.documentElement.classList],
+    dataTheme: document.documentElement.getAttribute("data-theme"),
+  }));
+  report(
+    state.classList.includes(theme),
+    `document reflects ${theme} theme`,
+    `class="${state.classList.join(" ")}"${
+      state.dataTheme ? ` data-theme="${state.dataTheme}"` : ""
+    }`
+  );
+}
+
 /** Scroll the whole page in steps so every reveal fires, then return to top. */
 async function settleReveals(page) {
   await page.evaluate(async () => {
@@ -97,6 +130,9 @@ async function run() {
 
       await page.goto(BASE, { waitUntil: "networkidle" });
       await settleReveals(page);
+
+      // ── theme actually applied (not just requested)
+      await assertTheme(page, theme);
 
       // ── layout
       const overflow = await page.evaluate(() => ({
@@ -267,6 +303,7 @@ async function run() {
     await page.setViewportSize({ width: 1366, height: 1000 });
     await page.goto(BASE, { waitUntil: "networkidle" });
     await settleReveals(page);
+    await assertTheme(page, "light");
 
     const rm = await page.evaluate(() => {
       const track = document.querySelector(".marquee-track");
@@ -298,6 +335,7 @@ async function run() {
     const { context, page, messages } = await openPage(browser, { theme: "dark" });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/login`, { waitUntil: "networkidle" });
+    await assertTheme(page, "dark");
     const text = await page.evaluate(() => document.body.innerText);
     report(/Activ/.test(text), "wordmark on the login card");
     report(!/AttendPAC/i.test(text), "no old brand on /login");

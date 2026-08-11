@@ -1,0 +1,92 @@
+import { Megaphone } from "lucide-react";
+
+import { createClient } from "@/lib/supabase/server";
+import { getEmployeeContext } from "@/lib/supabase/employee";
+import { formatDate } from "@/lib/timezone";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { DismissOwnNoticeButton } from "./dismiss-own-notice-button";
+
+/** Left border per level, so severity is legible without reading the words. */
+const LEVEL_BORDER: Record<string, string> = {
+  critical: "border-l-2 border-l-destructive",
+  warning: "border-l-2 border-l-primary",
+  info: "border-l-2 border-l-border",
+};
+
+/**
+ * Notices addressed to the signed-in employee.
+ *
+ * The audience rule — same org, site unset or matching, role unset or matching —
+ * is enforced by RLS in migration 0013 and is deliberately NOT reimplemented
+ * here. Two versions of one rule drift, and the version in the database is the
+ * one that actually protects anything.
+ */
+export async function NoticesRail() {
+  const employee = await getEmployeeContext();
+  if (!employee) return null;
+
+  const supabase = await createClient();
+
+  const [noticesRes, dismissedRes] = await Promise.all([
+    supabase
+      .from("notifications")
+      .select("id, message, level, created_at")
+      .eq("org_id", employee.orgId)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("notification_dismissals")
+      .select("notification_id")
+      .eq("employee_id", employee.id),
+  ]);
+
+  const failed = Boolean(noticesRes.error || dismissedRes.error);
+
+  const dismissed = new Set(
+    (dismissedRes.data ?? []).map((d) => d.notification_id)
+  );
+  const notices = (noticesRes.data ?? []).filter((n) => !dismissed.has(n.id));
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Megaphone className="size-4 text-muted-foreground" />
+          <CardTitle className="text-base">Notices</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {/* A failed read must not render as an empty rail: an empty rail says
+            "no announcements", which is a claim, not an absence of data. */}
+        {failed && (
+          <p className="text-sm text-destructive">
+            Couldn&apos;t load notices. Reload — don&apos;t assume there are none.
+          </p>
+        )}
+
+        {!failed && notices.length === 0 && (
+          <p className="py-4 text-sm text-muted-foreground">
+            Nothing from your manager right now.
+          </p>
+        )}
+
+        {notices.map((notice) => (
+          <div
+            key={notice.id}
+            className={`flex flex-col gap-2 rounded-sm bg-secondary/40 p-3 ${
+              LEVEL_BORDER[notice.level] ?? LEVEL_BORDER.info
+            }`}
+          >
+            <p className="text-sm">{notice.message}</p>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-label text-muted-foreground">
+                {formatDate(new Date(notice.created_at))}
+              </span>
+              <DismissOwnNoticeButton noticeId={notice.id} />
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}

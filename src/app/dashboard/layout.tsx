@@ -6,6 +6,7 @@ import { DISPLAY_LOCALE, ORG_TIME_ZONE } from "@/lib/timezone";
 import { OrgSuspended } from "@/components/org-suspended";
 import { EmployeeSidebar } from "@/components/dashboard/employee-sidebar";
 import { SignOutButton } from "./sign-out-button";
+import { NoticesRail } from "./notices-rail";
 
 /**
  * Shared chrome for every staff route.
@@ -94,7 +95,17 @@ export default async function DashboardLayout({
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
+        <main className="mx-auto w-full max-w-6xl px-6 py-8">
+          {/* Rail beside the content at lg, BELOW it under lg — not hidden. A
+              notice nobody sees on a phone is the bug this feature exists to
+              fix. */}
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+            <div className="min-w-0 flex-1">{children}</div>
+            <aside className="w-full shrink-0 lg:sticky lg:top-6 lg:w-72">
+              <NoticesRail />
+            </aside>
+          </div>
+        </main>
       </div>
     </div>
   );

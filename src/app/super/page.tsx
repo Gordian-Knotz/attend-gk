@@ -262,7 +262,7 @@ export default async function SuperOverviewPage() {
                         </TableCell>
                         <TableCell>
                           <Badge variant={BILLING_VARIANT[org.billing_status] ?? "outline"}>
-                            {org.billing_status}
+                            {org.billing_status.replace(/_/g, " ")}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -276,11 +276,14 @@ export default async function SuperOverviewPage() {
       </Card>
 
       <Callout variant="note" label="What this page can and can't do">
-        Plan, billing status and suspension are writable here and nowhere
-        else — migration 0010 blocks an org_admin from changing their own.
-        There is deliberately no delete: it would cascade to every employee
-        and attendance event that organization has recorded. Suspension is
-        the reversible equivalent.
+        Plan tier, billing status and suspension are changed on an
+        organization&apos;s own page — open one from the table above. They sit
+        next to that organization&apos;s name deliberately: suspension locks
+        every member of a tenant out of the product, and that is not a
+        control to put in a table row. Migration 0010 still blocks an
+        org_admin from changing their own. There is deliberately no delete:
+        it would cascade to every employee and attendance event that
+        organization has recorded. Suspension is the reversible equivalent.
       </Callout>
     </div>
   );

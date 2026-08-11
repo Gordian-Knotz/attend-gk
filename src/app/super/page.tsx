@@ -1,4 +1,5 @@
 import { Building2 } from "lucide-react";
+import Link from "next/link";
 
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { createClient } from "@/lib/supabase/server";
@@ -18,7 +19,6 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { BillingSelect, PlanSelect, SuspensionButton } from "./org-controls";
 
 /** How recently an org must have recorded a punch to count as active. */
 const ACTIVE_WINDOW_DAYS = 30;
@@ -191,6 +191,9 @@ export default async function SuperOverviewPage() {
       <Card>
         <CardHeader>
           <CardTitle>Organizations</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Open an organization to change its plan, billing or suspension.
+          </p>
         </CardHeader>
         <CardContent>
           {orgs.length === 0 ? (
@@ -208,7 +211,6 @@ export default async function SuperOverviewPage() {
                     <TableHead>Last punch</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Billing</TableHead>
-                    <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -223,7 +225,12 @@ export default async function SuperOverviewPage() {
                             </span>
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-medium">{org.name}</span>
+                                <Link
+                                  href={`/super/orgs/${org.id}`}
+                                  className="font-medium underline-offset-4 hover:text-primary hover:underline"
+                                >
+                                  {org.name}
+                                </Link>
                                 {org.suspended_at && (
                                   <Badge variant="destructive">Suspended</Badge>
                                 )}
@@ -249,29 +256,14 @@ export default async function SuperOverviewPage() {
                           {lastSeen ? formatDate(lastSeen) : "never"}
                         </TableCell>
                         <TableCell>
-                          <PlanSelect orgId={org.id} value={org.plan_tier} />
+                          <Badge variant="outline" className="capitalize">
+                            {org.plan_tier}
+                          </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              variant={
-                                BILLING_VARIANT[org.billing_status] ?? "outline"
-                              }
-                            >
-                              {org.billing_status.replace(/_/g, " ")}
-                            </Badge>
-                            <BillingSelect
-                              orgId={org.id}
-                              value={org.billing_status}
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <SuspensionButton
-                            orgId={org.id}
-                            orgName={org.name}
-                            suspended={Boolean(org.suspended_at)}
-                          />
+                          <Badge variant={BILLING_VARIANT[org.billing_status] ?? "outline"}>
+                            {org.billing_status}
+                          </Badge>
                         </TableCell>
                       </TableRow>
                     );

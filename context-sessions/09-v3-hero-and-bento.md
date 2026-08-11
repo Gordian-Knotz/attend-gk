@@ -86,7 +86,9 @@ Differences from the Aurora wrapper:
 - **No per-theme palette needed.** The shader emits
   `vec4(uColor * colorVal, colorVal)` — line intensity *is* the alpha — so
   the field composites over paper or ink unchanged. Only opacity is themed
-  (40% light / 60% dark). Threads reads better on paper than Aurora did,
+  (**25% light** / 60% dark — this said 40% light, which was the value before
+  the browser pass later in this document lowered it; 25% is what shipped).
+  Threads reads better on paper than Aurora did,
   because lines stay legible where a wash turned into the "muddy salmon
   slab" 07 describes.
 - **`enableMouseInteraction` is off, deliberately.** The wrapper is

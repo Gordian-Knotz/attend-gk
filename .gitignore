@@ -32,8 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
-# ...except the template, which holds names and no values. The README tells
-# you to copy it, so it has to actually be in the repository.
+# ...except the template. It documents each variable and carries no secrets —
+# some entries do have illustrative defaults, so "names only" was never quite
+# true. The README tells you to copy it, so it has to be in the repository.
 !.env.example
 
 # vercel

@@ -304,9 +304,10 @@ Route sizes for the new pages: `/admin/reports` 9.59 kB (238 kB first load,
 recharts), `/admin/organizations` 124 B (102 kB), `/reset-password` 3.32 kB
 (187 kB), `/` 5.39 kB (157 kB).
 
-**Not verified:** nothing was run against a live Supabase instance. Every
-query path, both new migrations, and the reset-password email round trip are
-type-correct and build-clean but untested end to end. See
+**Not verified** *(as written on 6 Aug — see the correction below, which
+supersedes the first sentence)*: nothing was run against a live Supabase
+instance. Every query path, both new migrations, and the reset-password email
+round trip are type-correct and build-clean but untested end to end. See
 [06](06-next-steps.md), and [10](10-live-db-bringup.md) for the plan to
 close it.
 

@@ -4,6 +4,15 @@ Ordered roughly by "would bite you soonest".
 
 ## Not verified
 
+> **Corrected 11 Aug 2026.** The blanket claim below is wrong in one direction,
+> and the distinction matters. **The schema has run:** migrations 0001–0011 are
+> applied to the project in `.env.local`, confirmed by a PostgREST probe. What
+> has not been exercised end to end is the **application** — the query paths,
+> the reset-password round trip, and everything behind an authenticated session.
+> Read "none of it has run" below as "none of the app's behaviour has been
+> exercised", not as "the migrations are unapplied". 0012 is written and
+> unexecuted.
+
 Everything below builds, type-checks and lints clean. **None of it has run
 against a live Supabase instance** — no query path has been executed end to
 end.
@@ -70,8 +79,9 @@ page still scopes to the operator's own org.
 
 ## Carried over from the original v2 roadmap
 
-- **Settings is still a stub.** Needs site geofence *editing* (currently
-  add/delete only) and org profile/billing.
+- ~~**Settings is still a stub.**~~ **Done 10 Aug 2026** — org rename, per-site
+  geofence editing, and plan/billing rendered read-only *because 0010's trigger
+  enforces it*. See doc 13.
 - **Payroll API push.** Reports covers the CSV half of Section 03; a direct
   push to a payroll provider is unbuilt.
 - **Realtime.** `/admin` re-queries on page load. Supabase Realtime would

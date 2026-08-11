@@ -71,6 +71,15 @@ Everything the page derives from raw rows, in one testable place with no Supabas
 >
 > Task 3's code below already reflects this. The tests keep all nine cases and
 > every assertion; only the fixture shape changes.
+>
+> **The two code blocks in Task 1 below are the ORIGINAL, superseded text.** They
+> still show `days: Date[]`, events without `day_key`, and the two imports that
+> cannot resolve. **Do not copy them.** They are left in place because this plan
+> is a record of what was planned, and the amendment above is the record of why
+> it changed — but the shipped contract lives in
+> `src/lib/tenant-summary.ts` and `src/lib/tenant-summary.test.mts`, which is
+> where you should read it. Rewriting the blocks here would just create a second
+> copy to keep in sync, which is the problem, not the fix.
 
 **Interfaces:**
 - Consumes: **nothing.** The module is import-free by design (see the amendment above).
@@ -1056,10 +1065,13 @@ Done when:
 - [ ] `npm test` passes (9 tests, `src/lib/tenant-summary.test.mts`)
 - [ ] `npx tsc --noEmit`, `npm run lint`, `npm run build` all exit 0
 - [ ] Build lists `ƒ /super/orgs/[id]` as a dynamic route
-- [ ] `grep -rn "pay_rate\|employment_type" src/app/super/` returns nothing
+- [ ] `grep -roE '\.select\(\s*"[^"]*"' src/app/super/ | grep -E "pay_rate|employment_type"`
+      returns nothing — check the `select` strings, not the file text, since the
+      page's doc comment names both columns on purpose
 - [ ] `/super` no longer imports `org-controls`, and its bundle is smaller than before
 - [ ] `src/app/super-check/` does not exist
-- [ ] `node scripts/smoke.mjs` still passes 99/99 against the public routes
+- [ ] `npm run smoke` passes against the public routes (107 checks after the
+      theme assertions were added — it was 99 when this plan was written)
 
 Left for a session with a real `super_admin` login, and **not claimed as done**:
 an end-to-end suspend/restore round trip, and confirming an org with no sites

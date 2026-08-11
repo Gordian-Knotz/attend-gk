@@ -180,10 +180,14 @@ The five things most worth knowing:
    `hello@activ-hr.com` — a placeholder nobody has verified receives mail. It
    backs the contact form's fallback and the suspension notice, so if it
    doesn't, enquiries vanish silently. One line.
-4. **Look at the new UI in a browser.** Playwright isn't installed here, so the
-   rename, the employee sidebar, Settings, the marquee and `PixelCard` are all
-   unlooked-at. Priorities and the four specific risks are at the end of
-   [13](13-railway-rename-and-product-work.md).
+4. **Look at the routes behind auth in a browser.** The public ones are done —
+   `npm run smoke` covers them at three widths in both themes plus reduced
+   motion, 107 checks, and it found five hydration bugs and a landing-page
+   overflow. Playwright *is* installed now. What it cannot reach is anything
+   needing a session: `/dashboard` with its sidebar, `/admin/settings`,
+   `/super` and the new `/super/orgs/[id]`. The tenant page's layout was checked
+   through a fixture route (which found a real overflow bug); the real page with
+   real data has still never rendered.
 5. **Work through [10](10-live-db-bringup.md)** — seed against the real project,
    then the three computations most likely to be subtly wrong (day bucketing,
    check-in pairing, absent arithmetic). The migrations half of that plan is

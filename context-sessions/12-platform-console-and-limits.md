@@ -314,9 +314,20 @@ seed.sql                               run last
 ```
 tsc --noEmit  ✓ exit 0
 npm run lint  ✓ exit 0, no warnings
-npm run build ✓ 19 routes + ƒ Middleware 92.9 kB, exit 0
+npm run build ✓ 19 routes + ƒ Middleware 92.9 kB, exit 0   ← see correction below
 Playwright    ✓ 1366×1000, 390×844, 320×844, both themes
 ```
+
+> **Corrected 11 Aug 2026.** That route count is wrong, and it was copied forward
+> into doc 13, the index README and an implementation plan before anyone counted
+> it. The build table has **16** rows; `src/app` holds 15 `page.tsx` files plus
+> the generated `/_not-found`. Nothing was deleted — the figure was never right.
+>
+> Caught by a subagent that checked the number rather than trusting it, while
+> being told "the build must still report 19 routes". Worth noting how it
+> survived: "19 routes" reads like evidence, so every later session repeated it
+> as proof the build was healthy. A number nobody re-derives is a claim, not a
+> measurement.
 
 `/super` 12.2 kB (274 kB). `/login` 4.51 kB (163 kB), down from 231 kB.
 

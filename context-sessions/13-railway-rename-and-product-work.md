@@ -330,7 +330,7 @@ that section is that you can see all three at once.
 ```
 tsc --noEmit  ✓ exit 0
 npm run lint  ✓ exit 0, no warnings
-npm run build ✓ 19 routes + ƒ Middleware 92.9 kB, exit 0
+npm run build ✓ 16 routes + ƒ Middleware 92.9 kB, exit 0
 Railway         deployment 76efd62c SUCCESS
 ```
 

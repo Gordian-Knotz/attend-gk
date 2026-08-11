@@ -17,6 +17,7 @@
 - **`perRequest` caching only.** Org-scoped data must never touch `cachePlatformAggregate`.
 - **Timezone:** all date bucketing and display go through `src/lib/timezone.ts` / `localDateKey`. Never `toISOString().slice(0,10)`.
 - Follow the existing action-result convention: server actions return **fresh object literals** (`{ error: "..." }` / `{ success: true as const }`) so call sites can read `result?.error`.
+- **Route count is 16 before this plan, 17 after Task 3.** Docs 12 and 13 and this plan originally said "19 routes"; that figure was never true on this branch — the build's table has 16 rows and `src/app` holds 15 `page.tsx` files plus the generated `/_not-found`. Caught during Task 2. Use 16/17.
 
 ---
 
@@ -465,7 +466,7 @@ Expected: `no references remain`.
 npx tsc --noEmit && npm run lint && npm run build
 ```
 
-Expected: all exit 0, build still reports 19 routes and `ƒ Middleware`.
+Expected: all exit 0, build still reports **16** route rows and a `ƒ Middleware` line. (16, not 19 — see the note under Global Constraints.)
 
 - [ ] **Step 6: Commit**
 

@@ -245,14 +245,15 @@ for (const entry of MATRIX) {
         /calendar days, including weekends/i.test(t),
         "leave page states the counting rule"
       );
-      // A real balance, the "not set up yet" note, or — if the requests
-      // read itself failed — the page's own "Can't compute balance"
-      // callout. Three legitimate states, but not silence. Fails if the
-      // balance card renders none of the three (e.g. an unhandled
-      // exception blanks the card, or all three copies are reworded at
-      // once).
+      // A real balance, the "not set up yet" note, the page's own "Can't
+      // compute balance" callout (requests read failed), or the "no
+      // entitlements yet" empty state (both reads succeeded, nothing to
+      // show — e.g. 0014 applied but no admin has granted anything yet).
+      // Four legitimate states, but not silence. Fails if the balance card
+      // renders none of the four (e.g. an unhandled exception blanks the
+      // card, or all four copies are reworded at once).
       report(
-        /remaining|tracked, no allowance|balances aren't set up|compute balance/i.test(
+        /remaining|tracked, no allowance|balances aren't set up|compute balance|no leave entitlements/i.test(
           t
         ),
         "leave page shows a balance or says why it cannot"

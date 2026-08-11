@@ -56,8 +56,24 @@ export type LeaveBalance = {
   remaining: number | null;
 };
 
-/** Annual first, then the rest alphabetically. Annual is the one people plan around. */
+/**
+ * An explicit order for these four types — annual first, since it's the one
+ * people plan around — with any other type falling back to alphabetical
+ * order after them. See `compareLeaveTypes` below, which is what actually
+ * applies this.
+ */
 const TYPE_ORDER = ["annual", "sick", "compassionate", "unpaid"];
+
+/**
+ * Orders leave types the way every screen that lists more than one of them
+ * should — exported so the admin utilization table and the staff balance
+ * card can't drift into disagreeing about which type comes first, the same
+ * way `buildLeaveBalances` itself is shared so their numbers can't drift.
+ */
+export function compareLeaveTypes(a: string, b: string): number {
+  const rank = (TYPE_ORDER.indexOf(a) + 1 || 99) - (TYPE_ORDER.indexOf(b) + 1 || 99);
+  return rank !== 0 ? rank : a.localeCompare(b);
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -149,10 +165,5 @@ export function buildLeaveBalances(input: {
       : null;
   }
 
-  return [...byType.values()].sort((a, b) => {
-    const rank =
-      (TYPE_ORDER.indexOf(a.leaveType) + 1 || 99) -
-      (TYPE_ORDER.indexOf(b.leaveType) + 1 || 99);
-    return rank !== 0 ? rank : a.leaveType.localeCompare(b.leaveType);
-  });
+  return [...byType.values()].sort((a, b) => compareLeaveTypes(a.leaveType, b.leaveType));
 }

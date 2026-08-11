@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { countLeaveDays, buildLeaveBalances } from "./leave-balance.ts";
+import { countLeaveDays, buildLeaveBalances, compareLeaveTypes } from "./leave-balance.ts";
 
 test("a single day is one day", () => {
   assert.equal(countLeaveDays("2026-08-12", "2026-08-12"), 1);
@@ -147,6 +147,19 @@ test("ordering follows the declared TYPE_ORDER, not the alphabet", () => {
     requests: [],
   });
   assert.deepEqual(balances.map((b) => b.leaveType), ["sick", "compassionate"]);
+});
+
+test("compareLeaveTypes: annual first, unknown types after the declared four, then alphabetical", () => {
+  // Exported so the admin utilization table and the staff balance card sort
+  // the same way without either one re-declaring the order. This test
+  // fails if the comparator regresses to plain alphabetical (annual would
+  // land after "an-unlisted-type"), if an unlisted type sorts ahead of a
+  // declared one, or if the within-group alphabetical fallback breaks.
+  const types = ["unpaid", "an-unlisted-type", "sick", "annual", "compassionate"];
+  assert.deepEqual(
+    [...types].sort(compareLeaveTypes),
+    ["annual", "sick", "compassionate", "unpaid", "an-unlisted-type"]
+  );
 });
 
 test("a numeric column arriving as a string still adds as a number", () => {

@@ -6,6 +6,7 @@ import { buildDailySeries, localDateKey, recentDays } from "@/lib/attendance-ser
 import { buildTimesheet } from "@/lib/timesheet";
 import {
   buildLeaveBalances,
+  compareLeaveTypes,
   type EntitlementRow,
   type LeaveRequestRow,
 } from "@/lib/leave-balance";
@@ -194,8 +195,12 @@ export default async function ReportsPage({
       }
     }
 
+    // Same ordering `buildLeaveBalances` applies to the staff page's own
+    // list, via the same exported comparator — an admin and an employee
+    // reading the same four leave types in different orders is the small
+    // version of exactly what the shared module exists to prevent.
     utilizationRows.push(
-      ...[...byType.values()].sort((a, b) => a.leaveType.localeCompare(b.leaveType))
+      ...[...byType.values()].sort((a, b) => compareLeaveTypes(a.leaveType, b.leaveType))
     );
   }
 
@@ -393,7 +398,17 @@ export default async function ReportsPage({
           </div>
         </CardHeader>
         <CardContent>
-          {utilizationFailed ? (
+          {utilizationRequestsError ? (
+            // Checked first, ahead of entitlementsError: when the requests
+            // read itself failed, "not set up yet" would be a false claim —
+            // entitlements may well exist. Mirrors the order /dashboard/leave
+            // uses between its own leaveFailed and entitlementsFailed.
+            <Callout variant="note" label="Utilization unavailable">
+              This year&apos;s leave history couldn&apos;t be loaded, so
+              utilization can&apos;t be computed right now. Reload the page
+              to try again.
+            </Callout>
+          ) : entitlementsError ? (
             <Callout variant="note" label="Utilization unavailable">
               Leave balances aren&apos;t set up on this organization yet.
             </Callout>
@@ -420,10 +435,15 @@ export default async function ReportsPage({
                         {u.leaveType}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
-                        {u.granted}
+                        {/* Display only — days_granted/days_carried are
+                            numeric(5,1), so summing halves across employees
+                            can surface float artifacts (e.g. 20.999999999).
+                            The percentage below keeps using the unrounded
+                            value. */}
+                        {u.granted.toFixed(1)}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
-                        {u.taken}
+                        {u.taken.toFixed(1)}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
                         {u.granted > 0

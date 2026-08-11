@@ -105,6 +105,15 @@ export default async function LeavePage() {
               Leave balances aren&apos;t set up on this organization yet. Your
               requests are listed below and are unaffected.
             </Callout>
+          ) : balances.length === 0 ? (
+            // Reachable in a real window: 0014 applied, but no admin has
+            // pressed the grant button yet, or this employee has neither an
+            // entitlement nor a leave request this year. Both reads
+            // succeeded — this is not a "can't compute" state — there is
+            // just nothing to show yet.
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              No leave entitlements yet for {year}.
+            </p>
           ) : (
             balances.map((b) => (
               <div

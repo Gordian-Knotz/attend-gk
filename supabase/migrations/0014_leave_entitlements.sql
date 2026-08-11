@@ -201,6 +201,18 @@ begin
 
   select org_id, role into v_org_id, v_role from public.current_employee();
 
+  -- `v_role not in (...)` is NULL, not true, when current_employee() returns
+  -- no row — a signed-in auth user with no employee row (exactly the state
+  -- /onboarding exists to resolve) would fall through the role check below
+  -- and reach the insert, which then matches zero rows only because
+  -- v_org_id is also null. That is an accident, not a guard: raise here
+  -- explicitly rather than depending on the insert failing to match later.
+  if v_org_id is null then
+    raise exception
+      'No employee record for the signed-in user; cannot grant leave entitlements.'
+      using errcode = '42501';
+  end if;
+
   if v_role not in ('org_admin', 'super_admin') then
     raise exception 'Only organization admins can grant leave entitlements.';
   end if;

@@ -10,7 +10,9 @@ v3 port (docs 09–10, plus corrections marked inline in 03, 04, 06, 07 and
 08), then a security audit and hardening pass (doc 11, plus corrections in
 01, 02, 06 and 07), then the platform console and rate limiting (doc 12),
 then the Railway deploy, the Activ-HR rename and four pieces of product work
-(doc 13, plus corrections in 08 and 12).
+(doc 13, plus corrections in 08 and 12). Then **11 August 2026**: the `/super`
+tenant detail pages, a 28-finding review of the whole branch, and the first
+authenticated browser pass (doc 14, plus corrections in 03, 06, 09 and 12).
 
 > **The product is called Activ-HR.** Renamed from AttendPAC on 10 Aug 2026,
 > user-visible strings only — the `--pac-*` design tokens, the `attendpac`
@@ -33,26 +35,45 @@ then the Railway deploy, the Activ-HR rename and four pieces of product work
 | [11-security-hardening.md](11-security-hardening.md) | The CodeRabbit audit: how to run it on a whole codebase, the five criticals, the self-approved-leave hole it missed, and migration 0008 |
 | [12-platform-console-and-limits.md](12-platform-console-and-limits.md) | `/super`, rate limiting (and why auth had to move server-side first), cookie/JWT policy, and the caching rule |
 | [13-railway-rename-and-product-work.md](13-railway-rename-and-product-work.md) | The Railway deploy and what it found, the Activ-HR rename, the employee sidebar, Settings wired, and the landing-page changes |
+| [14-tenant-detail-and-first-authed-pass.md](14-tenant-detail-and-first-authed-pass.md) | `/super/orgs/[id]`, the 28-finding CodeRabbit review (including a rate-limiter bypass), migration 0012, and the first authenticated browser pass — which found the mobile dashboard broken |
 | [coderabbit-findings-10aug.md](coderabbit-findings-10aug.md) | Raw output — all 90 findings by severity |
 
-## Where we left off — 10 Aug 2026 (deployed, renamed)
+## Where we left off — 11 Aug 2026 (tenant pages, reviewed, first authed pass)
 
-`tsc`, `lint` and `build` green (**16 routes + `ƒ Middleware 92.9 kB`**). On
-branch **`harden-security-audit`**, cut from `main` at `9fa2a6f`, **pushed to
-`origin` and 7 commits ahead of `main`. Not merged** — the unreviewed UI noted
-below is the reason to hold.
+`tsc`, `lint`, `build` (**17 routes + `ƒ Middleware`**), `npm test` 9/9,
+`npm run smoke` 107/107 and `npm run smoke:authed` 41/41 all green. On branch
+**`harden-security-audit`**, pushed, **not merged**.
+
+> **Start here: [14](14-tenant-detail-and-first-authed-pass.md).** Three things
+> from it that change what you should do next:
+>
+> 1. **Migration `0012_security_review_fixes.sql` is written and UNEXECUTED.**
+>    Until it runs, `employee_site_id` is a cross-tenant site lookup any
+>    authenticated user can call over RPC, and `contact_requests` has no
+>    deletion path for personal data it stores. Deploying did not apply it.
+> 2. **The rate limiter was bypassable.** `clientIpFrom` trusted the leftmost
+>    `x-forwarded-for` entry — the one the caller sets. Fixed, but it means the
+>    limiting doc 12 describes was decorative against a real attacker until now.
+> 3. **The first authenticated look found `/dashboard` broken at mobile widths**
+>    — the rail sat beside the content, 627px wide in a 390px window. Fixed.
+>    `npm run smoke:authed` exists so this is checkable from now on.
+
+> **RLS is verified on the live database for the first time.** With a real staff
+> session: `biometric_devices` returns 0 rows (doc 11's worst finding, closed and
+> proven), `leave_requests` returns only their own (0008's four-tier policy
+> holds), and only their own organization is visible. See doc 14.
 
 **The app is deployed.** Railway project `activ-hr`, service `web`, one
 container, live at `web-production-c7d3e.up.railway.app`. Deployed from the
 working tree with `railway up`, so what runs there is the branch state.
 Migrations **0001–0011 are all applied** to the live Supabase project.
 
-> **Two things are missing and both bite.**
-> `SUPABASE_SERVICE_ROLE_KEY` is set neither in `.env.local` nor on Railway, so
-> staff invite is broken in dev and in production. And `SUPPORT_EMAIL` in
-> `src/lib/brand.ts` is a **placeholder** — `hello@activ-hr.com`, unconfirmed —
-> which backs the contact form's fallback and the suspension notice.
-> See [13](13-railway-rename-and-product-work.md).
+> ~~`SUPABASE_SERVICE_ROLE_KEY` is missing~~ — **added 11 Aug**, to `.env.local`
+> and to Railway. Staff invite and the seeder work now.
+>
+> Still outstanding: **`SUPPORT_EMAIL` in `src/lib/brand.ts` is a placeholder**
+> (`hello@activ-hr.com`, unconfirmed), and it backs the contact form's fallback
+> and the suspension notice. One line.
 
 > **The public routes have had a browser pass: `npm run smoke`.** 99 checks at
 > three widths in both themes, plus reduced motion. It found **five hydration
@@ -61,9 +82,12 @@ Migrations **0001–0011 are all applied** to the live Supabase project.
 > emulated the preference. All fixed by gating on mount. Full account in
 > [13](13-railway-rename-and-product-work.md).
 >
-> **Everything behind auth is still unrendered** — `/dashboard` with its new
-> sidebar, `/admin/settings`, `/super`. Doc 09's fixture-route trick is the way
-> to see those without writing rows into the live project.
+> **Partly resolved 11 Aug.** `/dashboard` *has* now been rendered, via a staff
+> demo account, and it was broken at mobile widths — see doc 14.
+> `npm run smoke:authed` covers it at three widths in both themes. Still
+> unrendered: `/super`, `/super/orgs/[id]`, `/admin/settings`, `/admin` and
+> `/checkin` — those need an **admin or super_admin** session, and the demo
+> account is staff. Extend the authed script's matrix once you have one.
 
 > **Lighthouse: performance 72, accessibility 100, best practices 100, SEO 100.**
 > Paint is fine (FCP 0.6s, LCP 1.4s, CLS 0); the score is held down by **600 ms

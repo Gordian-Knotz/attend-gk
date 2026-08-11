@@ -62,6 +62,32 @@ create index if not exists idx_leave_entitlements_org
 alter table leave_policies enable row level security;
 alter table leave_entitlements enable row level security;
 
+-- ── 2.5. Helper: Cross-tenant enforcement ──────────────────────────────
+--
+-- employee_org_id returns the org of a given employee, but only when it
+-- matches the calling user's own org. For any employee outside the caller's
+-- org, it returns null. This prevents the cross-tenant write hole: a policy
+-- that checks `org_id = public.employee_org_id(employee_id)` will refuse
+-- writes for employees outside the caller's scope.
+--
+-- This mirrors the narrowing of employee_site_id in 0012, and mirrors the
+-- pattern 0008 established when it added similar denormalisation checks.
+
+create or replace function public.employee_org_id(p_employee uuid)
+returns uuid
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select org_id
+  from employees
+  where id = p_employee
+    and org_id = (select org_id from public.current_employee())
+$$;
+
+grant execute on function public.employee_org_id(uuid) to authenticated;
+
 -- ── 3. Reads ────────────────────────────────────────────────────────────
 --
 -- The policy is the org's published rule, so everyone in the org may read it —
@@ -126,6 +152,7 @@ create policy "leave entitlement: admins manage" on leave_entitlements for all
     or (
       (select role from public.current_employee()) = 'org_admin'
       and org_id = (select org_id from public.current_employee())
+      and org_id = public.employee_org_id(employee_id)
     )
   )
   with check (
@@ -133,6 +160,7 @@ create policy "leave entitlement: admins manage" on leave_entitlements for all
     or (
       (select role from public.current_employee()) = 'org_admin'
       and org_id = (select org_id from public.current_employee())
+      and org_id = public.employee_org_id(employee_id)
     )
   );
 
@@ -140,8 +168,12 @@ create policy "leave entitlement: admins manage" on leave_entitlements for all
 --
 -- Without this the feature launches with every balance blank. SECURITY DEFINER
 -- so it can insert for every employee in the org, but gated to the caller's own
--- organization and to admins — plus the `auth.uid() is null` escape hatch 0011
--- and 0012 use, which is what lets the service role and the SQL editor seed.
+-- organization and to admins.
+--
+-- Unlike 0011 and 0012, this RPC deliberately does NOT pass through null auth.
+-- A seed script that wants to insert leave_entitlements can call the insert
+-- directly, since the service role bypasses RLS entirely. Failing loudly on an
+-- unauthenticated call prevents accidental misuse of this RPC.
 --
 -- `on conflict do nothing` is load-bearing: re-running must not overwrite an
 -- entitlement an admin has adjusted by hand. That is the difference between
@@ -155,7 +187,7 @@ set search_path = public
 as $$
 declare
   v_org_id uuid;
-  v_role   text;
+  v_role   employee_role;
   v_count  integer;
 begin
   if p_year is null or p_year < 2020 or p_year > 2100 then

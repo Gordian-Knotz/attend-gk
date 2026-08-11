@@ -131,7 +131,20 @@ nothing on a shared kiosk; and an invalid `NEXT_PUBLIC_ORG_TIME_ZONE` reached
 One finding was skipped with reason: `reactbits/RotatingText.tsx` is vendored
 byte-for-byte on purpose and is currently orphaned.
 
-### Migration 0012 — written, **unexecuted**
+### Migration 0012 — **applied 11 Aug, and verified behaviourally**
+
+> Applied by the owner the same day. Verified rather than assumed, which matters
+> because this one replaced a function that RLS policies call — a bad apply would
+> have broken reads rather than failing loudly:
+>
+> - `purge_contact_requests` resolves through PostgREST (a `GET` returns 405,
+>   PostgREST refusing a volatile function, not 404).
+> - **The cross-tenant leak is closed, tested as a real staff session:**
+>   `employee_site_id()` returns the site for an employee in the caller's own
+>   org, and **`null`** for an employee in another org. Before 0012 that second
+>   call returned the other tenant's site.
+> - `npm run smoke` 107/107 and `npm run smoke:authed` 41/41 after the migration,
+>   so the narrower function broke no legitimate read.
 
 Three findings were in **already-applied** migrations, so editing those files
 would have changed nothing in production while creating drift between the files
@@ -245,10 +258,10 @@ Live at `web-production-c7d3e.up.railway.app`. Branch pushed.
 
 ## Where to pick up
 
-1. **Run migration 0012.** It is written, idempotent and **unexecuted**. Until
-   it runs, `employee_site_id` remains a cross-tenant site lookup callable by
-   any authenticated user, and `contact_requests` still has no deletion path.
-   Deploying the app did not apply it.
+1. ~~**Run migration 0012.**~~ **Done 11 Aug, verified** — see above. All
+   migrations 0001–0012 are applied. Note `purge_contact_requests` exists but is
+   **not scheduled**: nothing removes old contact requests until you either call
+   it or add a `pg_cron` job.
 2. **`/super` and `/super/orgs/[id]` have still never rendered.** They need a
    `super_admin` session; the demo account is staff. The layout was checked
    through a fixture route, not the real page with real data. Either use a

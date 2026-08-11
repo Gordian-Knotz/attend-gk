@@ -47,10 +47,12 @@ authenticated browser pass (doc 14, plus corrections in 03, 06, 09 and 12).
 > **Start here: [14](14-tenant-detail-and-first-authed-pass.md).** Three things
 > from it that change what you should do next:
 >
-> 1. **Migration `0012_security_review_fixes.sql` is written and UNEXECUTED.**
->    Until it runs, `employee_site_id` is a cross-tenant site lookup any
->    authenticated user can call over RPC, and `contact_requests` has no
->    deletion path for personal data it stores. Deploying did not apply it.
+> 1. **Migrations 0001–0012 are ALL applied.** 0012 landed 11 Aug and was
+>    verified behaviourally, not assumed: as a real staff session,
+>    `employee_site_id()` now returns `null` for an employee in another
+>    organization and the correct site for one in your own. Both smoke passes
+>    stayed green afterwards, so the narrower function broke no legitimate read.
+>    Caveat: `purge_contact_requests` exists but is **not scheduled**.
 > 2. **The rate limiter was bypassable.** `clientIpFrom` trusted the leftmost
 >    `x-forwarded-for` entry — the one the caller sets. Fixed, but it means the
 >    limiting doc 12 describes was decorative against a real attacker until now.

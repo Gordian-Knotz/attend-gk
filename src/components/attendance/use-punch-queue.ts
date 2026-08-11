@@ -38,7 +38,9 @@ export type Geofence = {
 
 type RecordAttendance = (
   input: QueuedEvent
-) => Promise<{ error?: string; success?: true } | undefined>;
+) => Promise<
+  { error?: string; retryable?: boolean; success?: true } | undefined
+>;
 
 function newEventId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -138,6 +140,11 @@ export function usePunchQueue({
       setQueueLength(remaining.length);
 
       if (index > 0) {
+        // Without this, `lastEvent` stays whatever it was before the flush
+        // (often `null` on a fresh reload), so `nextAction` can still offer
+        // "check in" to someone whose queued check-in just replayed — the
+        // button would ask them to do the opposite of what they just did.
+        setLastEvent(queue[index - 1].eventType);
         setJustSynced(true);
         window.setTimeout(() => setJustSynced(false), 3000);
       }
@@ -177,18 +184,46 @@ export function usePunchQueue({
         clientEventId: newEventId(),
       };
 
-      if (!navigator.onLine) {
-        const queue = readQueue();
-        queue.push(payload);
-        writeQueue(queue);
-        setQueueLength(queue.length);
+      // Queue instead of submitting directly whenever there's already a
+      // backlog or a flush is running. Submitting straight through here
+      // regardless of queue state let a fresh punch reach the server ahead
+      // of older queued ones — a check-out could land before its own
+      // check-in. Queueing preserves order; the serial flush (which
+      // re-reads the queue) is what actually drains it.
+      const queueBeforeSubmit = readQueue();
+      if (!navigator.onLine || queueBeforeSubmit.length > 0 || flushing.current) {
+        queueBeforeSubmit.push(payload);
+        writeQueue(queueBeforeSubmit);
+        setQueueLength(queueBeforeSubmit.length);
         setLastEvent(nextAction); // optimistic
+        if (navigator.onLine) {
+          // There's a backlog but we're online — don't make this punch
+          // wait for the next 'online' event or a reload. flushQueue's own
+          // in-flight guard makes this safe to call even if one is already
+          // running (it becomes a no-op in that case).
+          flushQueue();
+        }
         return;
       }
 
       const result = await recordAttendance(payload);
 
       if (result?.error) {
+        if (result.retryable) {
+          // Transient (rate limit, a DB hiccup) — exactly what the offline
+          // queue exists for. Discarding it here would silently drop a real
+          // punch instead of retrying it. Queue it with its clientEventId so
+          // the eventual replay is deduplicated rather than double-recorded.
+          const queue = readQueue();
+          queue.push(payload);
+          writeQueue(queue);
+          setQueueLength(queue.length);
+          setLastEvent(nextAction); // optimistic, same as the offline path
+          return;
+        }
+        // A validation failure (outside the geofence, unassigned site, …)
+        // will fail identically on replay, so show it instead of queueing
+        // a punch that can never succeed.
         setError(result.error);
         return;
       }

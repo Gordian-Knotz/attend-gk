@@ -176,8 +176,13 @@ export default async function TenantDetailPage({
         </CardContent>
       </Card>
 
+      {/* min-w-0 on both columns: a grid item's default min-width is its
+          content's min-content width, so without this the Roster table's
+          own overflow-x-auto (table.tsx) never gets a chance to absorb the
+          overflow — the min-content floor pushes the column, and the page
+          body ends up scrolling sideways instead of the table. */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <div className="flex items-center gap-2">
               <MapPin className="size-4 text-muted-foreground" />
@@ -205,7 +210,7 @@ export default async function TenantDetailPage({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Users className="size-4 text-muted-foreground" />

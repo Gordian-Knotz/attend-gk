@@ -51,8 +51,28 @@ Everything the page derives from raw rows, in one testable place with no Supabas
 - Create: `src/lib/tenant-summary.test.mts`  ← **`.mts`, not `.ts`** — see the note below.
 - Modify: `package.json` (add the `test` script)
 
+> **AMENDED DURING EXECUTION — 11 Aug.** The code below as originally written
+> imports `localDateKey` and `formatDate`. **It cannot.** The implementer found
+> that `@/` is a tsconfig alias Node knows nothing about, so it does not resolve
+> under `node --test`; an extensionless relative import fails Node's ESM
+> resolver; and a relative import carrying `.ts` fails `tsc` with TS5097. No
+> spelling satisfies both tools.
+>
+> Ruling: **the module imports nothing.** The timezone-sensitive work moves to
+> the caller, which is a better boundary anyway — one place applies the org
+> timezone. Three signature changes, and the committed code is the record:
+>
+> - `TenantEvent` gains `day_key: string`, supplied by the caller via
+>   `localDateKey`. The module must **not** derive it from `occurred_at`, which
+>   would reintroduce UTC bucketing.
+> - `days` becomes `{ key: string; label: string }[]` instead of `Date[]`.
+> - `usageSeries` maps over those keys and labels directly.
+>
+> Task 3's code below already reflects this. The tests keep all nine cases and
+> every assertion; only the fixture shape changes.
+
 **Interfaces:**
-- Consumes: `localDateKey` and `formatDate` from `@/lib/attendance-series` and `@/lib/timezone` (both already exist).
+- Consumes: **nothing.** The module is import-free by design (see the amendment above).
 - Produces: `summariseTenant(input): TenantSummary`, plus the types `TenantEmployee`, `TenantSite`, `TenantEvent`, `RosterRow`, `TenantSummary`. Task 3 imports all of these.
 
 - [ ] **Step 1: Write the failing test**
@@ -507,7 +527,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, Users } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { recentDays } from "@/lib/attendance-series";
+import { localDateKey, recentDays } from "@/lib/attendance-series";
 import { formatDate } from "@/lib/timezone";
 import { summariseTenant } from "@/lib/tenant-summary";
 import { PageHeader } from "@/components/admin/page-header";
@@ -558,8 +578,16 @@ export default async function TenantDetailPage({
   const supabase = await createClient();
 
   const now = new Date();
-  const days = recentDays(WINDOW_DAYS, now);
-  const windowStart = days[0];
+
+  // `summariseTenant` imports nothing, so the timezone-sensitive work happens
+  // here and only here: day keys and labels are resolved up front, and every
+  // punch is bucketed through `localDateKey` on the way in. See Task 1.
+  const dayDates = recentDays(WINDOW_DAYS, now);
+  const windowStart = dayDates[0];
+  const days = dayDates.map((day) => ({
+    key: localDateKey(day),
+    label: formatDate(day).replace(/ \d{4}$/, ""),
+  }));
 
   const [orgRes, sitesRes, employeesRes, eventsRes] = await Promise.all([
     supabase
@@ -607,7 +635,11 @@ export default async function TenantDetailPage({
     days,
     sites: sitesRes.data ?? [],
     employees: employeesRes.data ?? [],
-    events: eventsRes.data ?? [],
+    events: (eventsRes.data ?? []).map((ev) => ({
+      employee_id: ev.employee_id,
+      occurred_at: ev.occurred_at,
+      day_key: localDateKey(new Date(ev.occurred_at)),
+    })),
   });
 
   const suspended = Boolean(org.suspended_at);

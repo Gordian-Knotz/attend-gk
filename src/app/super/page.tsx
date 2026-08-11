@@ -7,7 +7,7 @@ import { formatDate } from "@/lib/timezone";
 import { PageHeader } from "@/components/admin/page-header";
 import { Callout } from "@/components/callout";
 import { StatTiles } from "@/components/site/stat-tiles";
-import { SignupTrendChart } from "@/components/charts/signup-trend-chart";
+import { DailyTrendChart } from "@/components/charts/daily-trend-chart";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -124,7 +124,7 @@ export default async function SuperOverviewPage() {
 
   const growthSeries = windowDays.map((day) => ({
     label: formatDate(day).replace(/ \d{4}$/, ""),
-    signups: signupsByDay.get(localDateKey(day)) ?? 0,
+    value: signupsByDay.get(localDateKey(day)) ?? 0,
   }));
 
   const totalPunches = events.length;
@@ -151,7 +151,7 @@ export default async function SuperOverviewPage() {
             <CardTitle>New organizations</CardTitle>
           </CardHeader>
           <CardContent>
-            <SignupTrendChart data={growthSeries} />
+            <DailyTrendChart data={growthSeries} label="signup" />
           </CardContent>
         </Card>
 

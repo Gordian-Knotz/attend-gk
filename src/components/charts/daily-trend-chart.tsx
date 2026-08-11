@@ -12,14 +12,16 @@ import {
 
 import { ChartTooltip, AXIS_TICK } from "./chart-tooltip";
 
-export type SignupPoint = {
+export type DailyPoint = {
   /** Short axis label, e.g. "12 Mar" */
   label: string;
-  signups: number;
+  value: number;
 };
 
 /**
- * New organizations per day, for `/super`.
+ * A labelled daily series with a running total and an empty state — the
+ * shape shared by "new organizations per day" on `/super` and "punches per
+ * day" on the tenant detail page.
  *
  * A separate component rather than a flag on `AttendanceTrendChart`: that
  * one is three fixed series with an "no attendance recorded" empty state,
@@ -27,23 +29,32 @@ export type SignupPoint = {
  * charts harder to read than either is now. Same axis and tooltip
  * primitives, so they still look like one family.
  */
-export function SignupTrendChart({ data }: { data: SignupPoint[] }) {
-  const total = data.reduce((n, d) => n + d.signups, 0);
+export function DailyTrendChart({
+  data,
+  label,
+}: {
+  data: DailyPoint[];
+  /** Singular noun for the series, e.g. "signup" or "punch". */
+  label: string;
+}) {
+  const total = data.reduce((n, d) => n + d.value, 0);
 
   if (total === 0) {
     return (
       <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">
-        No organizations signed up in this period.
+        No {label}s recorded in this period.
       </div>
     );
   }
+
+  const seriesName = total === 1 ? label : `${label}s`;
 
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
           <defs>
-            <linearGradient id="signup-fill" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={`${label}-fill`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.28} />
               <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
             </linearGradient>
@@ -67,11 +78,11 @@ export function SignupTrendChart({ data }: { data: SignupPoint[] }) {
           <Tooltip content={<ChartTooltip />} cursor={{ stroke: "var(--border)" }} />
           <Area
             type="monotone"
-            dataKey="signups"
-            name="Signups"
+            dataKey="value"
+            name={seriesName}
             stroke="var(--primary)"
             strokeWidth={2}
-            fill="url(#signup-fill)"
+            fill={`url(#${label}-fill)`}
             dot={false}
             activeDot={{ r: 3 }}
           />

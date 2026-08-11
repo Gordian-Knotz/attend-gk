@@ -1,7 +1,52 @@
 # Leave entitlements, balances and utilization
 
 **Date:** 11 August 2026
-**Status:** plan only — not built, not scheduled
+**Status:** **approved for build, 11 Aug.** Both open decisions resolved — see
+"Decisions taken" below. The rest of this document stands as written.
+
+## Decisions taken
+
+**Entitlement lives in two tables: an org policy plus a per-employee, per-year
+entitlement.** Option A below. A balance has to survive the policy changing —
+move from 21 days to 25 next year and every 2026 balance must stay what it was —
+and only a per-year record does that.
+
+**Days are counted as calendar days, inclusive.** 12–16 August is five days,
+weekends and public holidays included. The reasoning is the tenant base: security
+firms, logistics and retail, where weekend work is normal, so a weekend inside a
+leave period genuinely is leave. The cost is accepted and stated: an office
+worker taking Friday to Monday is charged four days, not two. **The rule is
+printed next to the balance**, because a number someone plans a holiday around
+must not be ambiguous.
+
+Rejected: working days Mon–Fri (wrong for a guard rostered on Saturdays, who
+would take leave on their actual working day and not be charged), and
+roster-matched days (the most correct in principle, but `shifts` is only
+populated ~14 days ahead, so the same request would count differently depending
+on when you looked — a balance that moves on its own is worse than a simple rule
+stated plainly).
+
+### Calls made without asking, stated so they can be reversed
+
+- **Only `approved` requests reduce the balance.** `pending` is shown separately
+  as "awaiting approval" so nobody books the same days twice, and so a manager
+  sitting on a request does not silently consume someone's allowance.
+- **Sick leave is tracked, not budgeted.** A policy row for `sick` is possible
+  but not seeded, so by default sick days show a running count with no allowance
+  to spend down. A hard sick allowance encourages people to work ill. Reversible
+  by inserting a policy row.
+- **The balance is computed in one pure, tested TypeScript module**, not a
+  database view or `SECURITY DEFINER` function. That matches
+  `src/lib/tenant-summary.ts` and `src/lib/notice-audience.ts`, keeps it testable
+  under `node --test` with no database, and still gives exactly one
+  implementation for both the staff page and the admin report to share.
+- **Utilization lives on `/admin/reports`**, where org-level numbers already
+  live, rather than a new page.
+- **The leave policy is edited on `/admin/settings`**, which already owns
+  org-level configuration.
+- **Per-person entitlement overrides are deferred.** The schema supports them —
+  `days_granted` is per employee — but v1 materialises everyone from the policy
+  and offers no per-person editing UI. Adding it later needs no migration.
 
 Staff should see how much leave they have left. Admins should see how much of the
 organization's leave has been used. Neither is possible today, and the reason is
@@ -132,11 +177,15 @@ it needs a trigger.
 
 ## Dependencies
 
-- **Migration 0013** (notices) should land first, purely to keep numbering clean.
-- **The HR suite spec** should be agreed before this is built, because if
-  employment terms move into an HR-owned table then `leave_policies` may belong
-  there rather than standing alone. Building this first risks a second home for
-  the same fact — the thing this spec exists to avoid.
+- **Migration 0013** (notices) is written and must be applied before 0014 is
+  written, purely to keep numbering honest.
+- ~~The HR suite spec should be agreed first~~ — **resolved 11 Aug.** The concern
+  was that `leave_policies` might belong inside an HR-owned table. It does not:
+  the HR spec's recommendation is an `employee_profiles` table for *personal*
+  data, and a leave policy is org-level configuration, not personal data.
+  Per-employee entitlements are already exactly the shape the HR spec argues for
+  — a fact belonging to a person and a period. So there is no second home for
+  the same fact, and this can be built without waiting.
 
 ## Explicitly not in this feature
 

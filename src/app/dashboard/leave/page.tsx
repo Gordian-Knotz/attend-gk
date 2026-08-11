@@ -61,13 +61,21 @@ export default async function LeavePage() {
   // error still gets its own error copy above.
   const entitlementsFailed = Boolean(entitlementsError);
 
-  const balances = entitlementsFailed
-    ? []
-    : buildLeaveBalances({
-        year,
-        entitlements: entitlements ?? [],
-        requests: leaveRequests ?? [],
-      });
+  // A balance is only trustworthy when both reads actually succeeded.
+  // Falling back to `leaveRequests ?? []` on a failed requests read would
+  // compute a figure from data that was never loaded — overstating
+  // `remaining` for budgeted types, and silently dropping unbudgeted types
+  // (e.g. `sick`) that would otherwise only appear because of this year's
+  // request activity. Neither is rendered; the balance card shows its own
+  // "can't compute this" state instead, below.
+  const balances =
+    entitlementsFailed || leaveFailed
+      ? []
+      : buildLeaveBalances({
+          year,
+          entitlements: entitlements ?? [],
+          requests: leaveRequests ?? [],
+        });
 
   return (
     <div className="flex flex-col gap-3">
@@ -83,6 +91,12 @@ export default async function LeavePage() {
             <Callout variant="note" label="Balances unavailable">
               Leave balances aren&apos;t set up on this organization yet. Your
               requests are listed below and are unaffected.
+            </Callout>
+          ) : leaveFailed ? (
+            <Callout variant="note" label="Can't compute balance">
+              Your leave history couldn&apos;t be loaded, so this year&apos;s
+              balance can&apos;t be worked out right now. Your entitlements
+              are unaffected — reload the page to try again.
             </Callout>
           ) : (
             balances.map((b) => (

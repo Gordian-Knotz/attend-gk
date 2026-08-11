@@ -806,10 +806,18 @@ export default async function TenantDetailPage({
 - [ ] **Step 3: Confirm no forbidden column is selected**
 
 ```bash
-grep -n "pay_rate\|employment_type" src/app/super/orgs/\[id\]/page.tsx || echo "clean: neither column is selected"
+grep -roE '\.select\(\s*"[^"]*"' src/app/super/ | grep -E "pay_rate|employment_type" || echo "clean: neither column appears in any select"
 ```
 
-Expected: `clean: neither column is selected`.
+Expected: `clean: neither column appears in any select`.
+
+> **Corrected during execution — 11 Aug.** This step originally grepped the file
+> for the column *names*, and the implementer dutifully reworded the doc comment
+> to satisfy it. Wrong way round: that comment deliberately names both columns,
+> because the next person adding a field to the `select` needs to read which two
+> are forbidden and why. Naming them in prose costs nothing; naming them in a
+> `select` is the hazard. Test the requirement as stated — neither column is
+> *selected* — not whether the words appear in the file.
 
 - [ ] **Step 4: Verify**
 

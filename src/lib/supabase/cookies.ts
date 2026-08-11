@@ -31,9 +31,12 @@ export function authCookieOptions(options: CookieOptions): CookieOptions {
     // password-recovery email, which 'strict' would break.
     sameSite: "lax",
 
-    // Never over plain HTTP in production. Local dev is http://localhost,
-    // where a Secure cookie is simply dropped and nobody can sign in.
-    secure: process.env.NODE_ENV === "production",
+    // Never over plain HTTP outside local development. Local dev is
+    // http://localhost, where a Secure cookie is dropped and nobody can
+    // sign in, so it is opt-out rather than production-only — an HTTPS
+    // preview or staging deploy has `NODE_ENV !== "production"` too, and
+    // keying off that alone would silently drop Secure there as well.
+    secure: process.env.NODE_ENV !== "development",
 
     // Scoped to the whole app, not the path that happened to set it.
     path: "/",

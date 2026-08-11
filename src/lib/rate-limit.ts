@@ -64,8 +64,14 @@ class MemoryStore implements RateLimitStore {
     const timestamps = (this.hits.get(key) ?? []).filter((t) => t > cutoff);
 
     if (timestamps.length >= limit) {
-      // Re-insert so this key counts as recently touched for eviction.
+      // Delete first: `set` on an existing key keeps its original position,
+      // so only a delete-then-set moves it to the end of the iterator. A
+      // rejected request still touches the key — an attacker who only ever
+      // gets rejected must not be exempt from eviction, or sustained
+      // rejected traffic from rotating IPs would grow `hits` unbounded.
+      this.hits.delete(key);
       this.hits.set(key, timestamps);
+      this.evictIfNeeded();
       const oldest = timestamps[0];
       return {
         ok: false,
@@ -75,6 +81,7 @@ class MemoryStore implements RateLimitStore {
     }
 
     timestamps.push(now);
+    this.hits.delete(key);
     this.hits.set(key, timestamps);
     this.evictIfNeeded();
 
@@ -180,15 +187,27 @@ export const contactLimiter = createLimiter({
  * Best-effort client IP.
  *
  * Behind Railway's proxy the socket address is the proxy's, so the client
- * address comes from `x-forwarded-for`. That header is client-settable when
- * a request reaches the app directly, which is why this is defence in depth
- * rather than identity: the leftmost entry is the one the edge appended.
+ * address comes from `x-forwarded-for`. That header is a comma-separated
+ * list that any client can send with arbitrary content, and Railway's proxy
+ * *appends* the address it actually saw rather than replacing the header —
+ * so the rightmost entry is the one hop we control, and the leftmost is
+ * whatever the caller put there. Reading the leftmost entry let anyone
+ * rotate it to defeat the limiter entirely.
+ *
+ * This assumes exactly one proxy hop between the client and this process —
+ * true for Railway's current single-container setup. If a second proxy
+ * (a CDN, a load balancer we don't control) is ever added in front of this,
+ * the trustworthy entry moves one further left and this must change with it.
  */
 export function clientIpFrom(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
+    const hops = forwarded
+      .split(",")
+      .map((h) => h.trim())
+      .filter(Boolean);
+    const trusted = hops[hops.length - 1];
+    if (trusted) return trusted;
   }
   return headers.get("x-real-ip")?.trim() || "unknown";
 }

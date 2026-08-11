@@ -54,10 +54,17 @@ function isCoord(value: unknown, max: number): value is number {
 /**
  * Optional siblings on both members so callers can read `result.error`
  * directly, which is how every existing call site is written.
+ *
+ * `retryable` distinguishes a transient failure (rate limit, a DB hiccup)
+ * from a validation failure (outside the geofence, unassigned site, bad
+ * input). The offline queue (`use-punch-queue.ts`) uses it to decide whether
+ * to hold onto a punch for a later replay or show the error and drop it —
+ * a validation failure will fail identically next time, so queueing it
+ * would just make the punch fail again on every future flush.
  */
 export type RecordAttendanceResult =
-  | { error: string; success?: undefined }
-  | { error?: undefined; success: true };
+  | { error: string; retryable?: boolean; success?: undefined }
+  | { error?: undefined; retryable?: undefined; success: true };
 
 export async function recordAttendanceFor(
   input: RecordAttendanceInput
@@ -79,6 +86,7 @@ export async function recordAttendanceFor(
   if (!punchQuota.ok) {
     return {
       error: `Too many check-ins in a short time. ${retryAfterMessage(punchQuota.retryAfterMs)}`,
+      retryable: true,
     };
   }
 
@@ -144,7 +152,10 @@ export async function recordAttendanceFor(
   // Previously a failed lookup fell through and inserted with no geofence
   // check at all — a transient error became a silent bypass.
   if (siteError || !site) {
-    return { error: "Couldn't verify your site right now — try again in a moment." };
+    return {
+      error: "Couldn't verify your site right now — try again in a moment.",
+      retryable: true,
+    };
   }
 
   if (
@@ -163,7 +174,10 @@ export async function recordAttendanceFor(
   );
 
   if (!Number.isFinite(distanceM)) {
-    return { error: "Couldn't work out your distance from the site — try again." };
+    return {
+      error: "Couldn't work out your distance from the site — try again.",
+      retryable: true,
+    };
   }
 
   if (distanceM > site.geofence_radius_m) {
@@ -172,10 +186,15 @@ export async function recordAttendanceFor(
     };
   }
 
-  const clientEventId =
-    input.clientEventId && UUID_PATTERN.test(input.clientEventId)
-      ? input.clientEventId
-      : null;
+  // A present-but-malformed id used to be silently coerced to null, which
+  // disables idempotency for that punch — exactly the guarantee the offline
+  // queue relies on to avoid double-recording. Absent is fine (older client
+  // build, or a caller that doesn't queue); malformed means something is
+  // wrong and the write should fail rather than proceed unprotected.
+  if (input.clientEventId !== undefined && !UUID_PATTERN.test(input.clientEventId)) {
+    return { error: "That check-in has a corrupted identifier — please try again." };
+  }
+  const clientEventId = input.clientEventId ?? null;
 
   const { error: insertError } = await supabase.from("attendance_events").insert({
     employee_id: employee.id,
@@ -193,13 +212,25 @@ export async function recordAttendanceFor(
   });
 
   if (insertError) {
-    // 23505 on the client_event_id index means this exact punch already
-    // landed and only the response was lost. Reporting success is correct
-    // and is what lets the queue drop the item instead of retrying forever.
-    if (insertError.code === "23505" && clientEventId) {
+    // 23505 means *some* unique constraint was violated, and this table has
+    // more than one. Only treat it as a benign duplicate when it's the
+    // client_event_id index from migration 0008 — any other unique
+    // violation is a real conflict, not a replay of this exact punch.
+    if (
+      insertError.code === "23505" &&
+      clientEventId &&
+      insertError.message.includes("attendance_events_client_event_id_key")
+    ) {
       return { success: true as const };
     }
-    return { error: insertError.message };
+    // PostgREST messages name tables, columns and constraints — fine to log,
+    // not fine to hand to a client. src/app/contact-actions.ts does the same
+    // split for the same reason.
+    console.error("[attendance] insert failed", insertError.message);
+    return {
+      error: "Couldn't record that check-in — try again in a moment.",
+      retryable: true,
+    };
   }
 
   return { success: true as const };

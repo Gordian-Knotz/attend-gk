@@ -30,7 +30,8 @@ declare
   v_site_id uuid;
   v_user_id uuid;
 begin
-  if v_admin_email = 'you@example.com' then
+  if v_admin_email = 'you@example.com'
+     or v_admin_name = 'Your Name' then
     raise exception
       'Edit v_admin_email and v_admin_name at the top of this script first.';
   end if;

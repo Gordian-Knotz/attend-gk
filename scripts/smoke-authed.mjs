@@ -236,6 +236,27 @@ for (const entry of MATRIX) {
       // Moved here from the /dashboard block above: this content lived on
       // the overview page before the dashboard split into four routes.
       report(/annual|sick|no leave/i.test(t), "leave section renders");
+      // Falsifiable: this sentence exists only on this page, and only
+      // because the leave-balance module's Global Constraints require the
+      // counting rule to be on screen next to the numbers it describes.
+      // Fails if LEAVE_COUNTING_RULE stops being rendered, or its wording
+      // drifts from what this regex expects.
+      report(
+        /calendar days, including weekends/i.test(t),
+        "leave page states the counting rule"
+      );
+      // A real balance, the "not set up yet" note, or — if the requests
+      // read itself failed — the page's own "Can't compute balance"
+      // callout. Three legitimate states, but not silence. Fails if the
+      // balance card renders none of the three (e.g. an unhandled
+      // exception blanks the card, or all three copies are reworded at
+      // once).
+      report(
+        /remaining|tracked, no allowance|balances aren't set up|compute balance/i.test(
+          t
+        ),
+        "leave page shows a balance or says why it cannot"
+      );
     }
 
     const current = await page.evaluate(

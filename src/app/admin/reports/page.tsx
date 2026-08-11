@@ -4,6 +4,11 @@ import { getEmployeeContext } from "@/lib/supabase/employee";
 import { createClient } from "@/lib/supabase/server";
 import { buildDailySeries, localDateKey, recentDays } from "@/lib/attendance-series";
 import { buildTimesheet } from "@/lib/timesheet";
+import {
+  buildLeaveBalances,
+  type EntitlementRow,
+  type LeaveRequestRow,
+} from "@/lib/leave-balance";
 import { formatDate } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/admin/page-header";
@@ -49,7 +54,12 @@ export default async function ReportsPage({
   const windowEnd = new Date(windowDays[windowDays.length - 1]);
   windowEnd.setDate(windowEnd.getDate() + 1);
 
-  const [sitesRes, workforceRes, eventsRes, leaveRes] =
+  // The org's timezone, not the server's — same derivation Task 3 uses on
+  // /dashboard/leave, so the admin card and the staff card never disagree
+  // about which year "this year" means.
+  const year = Number(localDateKey(new Date()).slice(0, 4));
+
+  const [sitesRes, workforceRes, eventsRes, leaveRes, entitlementsRes, leaveUtilizationRes] =
     await Promise.all([
       supabase.from("sites").select("id, name").eq("org_id", identity.orgId),
       supabase
@@ -72,6 +82,17 @@ export default async function ReportsPage({
         .eq("status", "approved")
         .lte("start_date", localDateKey(windowDays[windowDays.length - 1]))
         .gte("end_date", localDateKey(windowStart)),
+      supabase
+        .from("leave_entitlements")
+        .select("employee_id, leave_type, days_granted, days_carried")
+        .eq("org_id", identity.orgId)
+        .eq("year", year),
+      supabase
+        .from("leave_requests")
+        .select("employee_id, leave_type, start_date, end_date, status")
+        .eq("org_id", identity.orgId)
+        .gte("start_date", `${year}-01-01`)
+        .lte("start_date", `${year}-12-31`),
     ]);
 
   // Without this, a failed query fell through the `?? []` fallbacks and the
@@ -95,6 +116,88 @@ export default async function ReportsPage({
   const { data: workforce } = workforceRes;
   const { data: events } = eventsRes;
   const { data: leaveRows } = leaveRes;
+
+  // Migration 0014 may not be applied yet, so `leave_entitlements` can 404.
+  // Captured separately from `loadError` above: that error breaks the whole
+  // report (it works today and must keep working); this one only means the
+  // utilization card below isn't provisioned on this org, so it renders its
+  // own note instead. Kept as two distinct error values, not pre-merged,
+  // for the same reason Task 3 keeps `leaveFailed` and `entitlementsFailed`
+  // apart on /dashboard/leave — a genuine error in either read should still
+  // be traceable to its own query, even though both currently render the
+  // same note here.
+  const { data: orgEntitlements, error: entitlementsError } = entitlementsRes;
+  const { data: orgLeaveRequestsForUtilization, error: utilizationRequestsError } =
+    leaveUtilizationRes;
+  const utilizationFailed = Boolean(entitlementsError) || Boolean(utilizationRequestsError);
+
+  // Per-employee balances, summed across the org. Deliberately not a second
+  // implementation of the day-counting or budgeted/unbudgeted rules —
+  // `buildLeaveBalances` is called once per employee, exactly as the staff
+  // page calls it for one, and only the per-type totals are summed here.
+  // A balance is only trustworthy when both reads succeeded, so this stays
+  // empty rather than computing from a partial `?? []` fallback — the same
+  // rule /dashboard/leave applies to its own balance.
+  const utilizationRows: {
+    leaveType: string;
+    granted: number;
+    taken: number;
+    employeesWithEntitlement: number;
+  }[] = [];
+
+  if (!utilizationFailed) {
+    const entitlementsByEmployee = new Map<string, EntitlementRow[]>();
+    for (const row of orgEntitlements ?? []) {
+      const list = entitlementsByEmployee.get(row.employee_id) ?? [];
+      list.push(row);
+      entitlementsByEmployee.set(row.employee_id, list);
+    }
+
+    const requestsByEmployee = new Map<string, LeaveRequestRow[]>();
+    for (const row of orgLeaveRequestsForUtilization ?? []) {
+      const list = requestsByEmployee.get(row.employee_id) ?? [];
+      list.push(row);
+      requestsByEmployee.set(row.employee_id, list);
+    }
+
+    const employeeIds = new Set([
+      ...entitlementsByEmployee.keys(),
+      ...requestsByEmployee.keys(),
+    ]);
+
+    const byType = new Map<
+      string,
+      { leaveType: string; granted: number; taken: number; employeesWithEntitlement: number }
+    >();
+
+    for (const employeeId of employeeIds) {
+      const balances = buildLeaveBalances({
+        year,
+        entitlements: entitlementsByEmployee.get(employeeId) ?? [],
+        requests: requestsByEmployee.get(employeeId) ?? [],
+      });
+      for (const b of balances) {
+        const agg = byType.get(b.leaveType) ?? {
+          leaveType: b.leaveType,
+          granted: 0,
+          taken: 0,
+          employeesWithEntitlement: 0,
+        };
+        agg.granted += b.granted + b.carried;
+        agg.taken += b.taken;
+        // `remaining` is null exactly when this employee has no entitlement
+        // row for this type — the same signal `buildLeaveBalances` uses to
+        // tell "tracked" apart from "budgeted." Reusing it here means this
+        // count never has to name a leave type in code to decide it.
+        if (b.remaining !== null) agg.employeesWithEntitlement += 1;
+        byType.set(b.leaveType, agg);
+      }
+    }
+
+    utilizationRows.push(
+      ...[...byType.values()].sort((a, b) => a.leaveType.localeCompare(b.leaveType))
+    );
+  }
 
   const siteNameById = new Map((sites ?? []).map((s) => [s.id, s.name]));
   const employees = workforce ?? [];
@@ -272,6 +375,63 @@ export default async function ReportsPage({
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
                         {r.hoursWorked.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Leave utilization</CardTitle>
+            <Badge variant="outline">{year}</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {utilizationFailed ? (
+            <Callout variant="note" label="Utilization unavailable">
+              Leave balances aren&apos;t set up on this organization yet.
+            </Callout>
+          ) : utilizationRows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No leave entitlements configured for {year}.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Leave type</TableHead>
+                    <TableHead className="text-right">Granted</TableHead>
+                    <TableHead className="text-right">Taken</TableHead>
+                    <TableHead className="text-right">Utilization</TableHead>
+                    <TableHead className="text-right">Employees</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {utilizationRows.map((u) => (
+                    <TableRow key={u.leaveType}>
+                      <TableCell className="font-medium capitalize">
+                        {u.leaveType}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {u.granted}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {u.taken}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {u.granted > 0
+                          ? `${Math.round((u.taken / u.granted) * 100)}%`
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {u.employeesWithEntitlement}
                       </TableCell>
                     </TableRow>
                   ))}

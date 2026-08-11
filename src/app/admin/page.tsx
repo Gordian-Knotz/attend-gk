@@ -147,7 +147,36 @@ export default async function AdminOverviewPage() {
   const { data: notices, error: noticesError } = noticesRes;
 
   const siteNameById = new Map((sites ?? []).map((s) => [s.id, s.name]));
-  const employeeNameById = new Map((workforce ?? []).map((e) => [e.id, e.full_name]));
+
+  // Author names come from their own lookup, not `workforce`. `workforce` is
+  // filtered to staff/manager and feeds the KPI arithmetic below — widening
+  // it to include org_admin authors would silently change every one of
+  // those counts. This is a second, independent round trip, and only runs
+  // when there is a notice with an author to resolve.
+  const authorIds = Array.from(
+    new Set(
+      (notices ?? [])
+        .map((n) => n.author_id as string | null)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
+  let authorNameById = new Map<string, string>();
+  if (authorIds.length > 0) {
+    const { data: authors, error: authorsError } = await supabase
+      .from("employees")
+      .select("id, full_name")
+      .eq("org_id", identity.orgId)
+      .in("id", authorIds);
+
+    // A failed or partial lookup (including RLS quietly hiding a row the
+    // viewer isn't allowed to see — a manager can't see an org_admin outside
+    // their site) just leaves that author unresolved below; it must not take
+    // the Notices card down.
+    if (!authorsError) {
+      authorNameById = new Map((authors ?? []).map((a) => [a.id, a.full_name]));
+    }
+  }
 
   const todaysEvents = (windowEvents ?? []).filter(
     (ev) => localDateKey(new Date(ev.occurred_at)) === todayDateStr
@@ -418,7 +447,7 @@ export default async function AdminOverviewPage() {
                       })}
                       {" · "}
                       {notice.author_id
-                        ? `Posted by ${employeeNameById.get(notice.author_id) ?? "someone no longer on the roster"}`
+                        ? `Posted by ${authorNameById.get(notice.author_id) ?? "another admin"}`
                         : "Posted before authors were recorded"}
                     </p>
                   </div>

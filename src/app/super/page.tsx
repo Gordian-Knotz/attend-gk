@@ -151,7 +151,7 @@ export default async function SuperOverviewPage() {
             <CardTitle>New organizations</CardTitle>
           </CardHeader>
           <CardContent>
-            <DailyTrendChart data={growthSeries} label="signup" />
+            <DailyTrendChart data={growthSeries} label="Signups" />
           </CardContent>
         </Card>
 

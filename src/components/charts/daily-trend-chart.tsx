@@ -34,7 +34,7 @@ export function DailyTrendChart({
   label,
 }: {
   data: DailyPoint[];
-  /** Singular noun for the series, e.g. "signup" or "punch". */
+  /** Exact noun for the series as displayed, e.g. "Signups" or "Punches". */
   label: string;
 }) {
   const total = data.reduce((n, d) => n + d.value, 0);
@@ -42,12 +42,10 @@ export function DailyTrendChart({
   if (total === 0) {
     return (
       <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">
-        No {label}s recorded in this period.
+        No {label.toLowerCase()} recorded in this period.
       </div>
     );
   }
-
-  const seriesName = total === 1 ? label : `${label}s`;
 
   return (
     <div className="h-56 w-full">
@@ -79,7 +77,7 @@ export function DailyTrendChart({
           <Area
             type="monotone"
             dataKey="value"
-            name={seriesName}
+            name={label}
             stroke="var(--primary)"
             strokeWidth={2}
             fill={`url(#${label}-fill)`}

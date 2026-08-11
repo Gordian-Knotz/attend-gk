@@ -1,10 +1,11 @@
-import { MapPin, Building2, CreditCard, Clock } from "lucide-react";
+import { MapPin, Building2, CreditCard, Clock, Palmtree } from "lucide-react";
 
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { createClient } from "@/lib/supabase/server";
 import { ORG_TIME_ZONE } from "@/lib/timezone";
 import { LATE_CUTOFF_HOUR, LATE_CUTOFF_MINUTE } from "@/lib/attendance";
-import { ABSENT_CUTOFF_HOUR } from "@/lib/attendance-series";
+import { ABSENT_CUTOFF_HOUR, localDateKey } from "@/lib/attendance-series";
+import { LEAVE_COUNTING_RULE } from "@/lib/leave-balance";
 import { SUPPORT_EMAIL } from "@/lib/brand";
 import { PageHeader } from "@/components/admin/page-header";
 import { Callout } from "@/components/callout";
@@ -13,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { OrgNameForm } from "./org-name-form";
 import { EditSiteDialog } from "./edit-site-dialog";
+import { LeavePolicyForm, type LeavePolicyValue } from "./leave-policy-form";
+import { GrantEntitlementsButton } from "./grant-entitlements-button";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -42,18 +45,32 @@ export default async function SettingsPage() {
 
   const supabase = await createClient();
 
-  const [orgRes, sitesRes] = await Promise.all([
-    supabase
-      .from("organizations")
-      .select("id, name, slug, plan_tier, billing_status, created_at")
-      .eq("id", employee.orgId)
-      .maybeSingle(),
-    supabase
-      .from("sites")
-      .select("id, name, geofence_lat, geofence_lng, geofence_radius_m")
-      .eq("org_id", employee.orgId)
-      .order("created_at", { ascending: true }),
-  ]);
+  // The org's timezone, not the server's — matches `/dashboard/leave`, which
+  // computes "this year" the same way for the same reason.
+  const year = Number(localDateKey(new Date()).slice(0, 4));
+
+  const [orgRes, sitesRes, leavePoliciesRes, leaveEntitlementsRes] =
+    await Promise.all([
+      supabase
+        .from("organizations")
+        .select("id, name, slug, plan_tier, billing_status, created_at")
+        .eq("id", employee.orgId)
+        .maybeSingle(),
+      supabase
+        .from("sites")
+        .select("id, name, geofence_lat, geofence_lng, geofence_radius_m")
+        .eq("org_id", employee.orgId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("leave_policies")
+        .select("leave_type, annual_days, carry_over_max")
+        .eq("org_id", employee.orgId),
+      supabase
+        .from("leave_entitlements")
+        .select("employee_id")
+        .eq("org_id", employee.orgId)
+        .eq("year", year),
+    ]);
 
   // Both queries report their own failure. Doc 11: a failed query rendering as
   // a confident empty state is how "No sites yet" ends up on the screen of an
@@ -61,6 +78,27 @@ export default async function SettingsPage() {
   const loadFailed = Boolean(orgRes.error || sitesRes.error);
   const org = orgRes.data;
   const sites = sitesRes.data ?? [];
+
+  // Kept apart from `loadFailed`: migration 0014 may not be applied on every
+  // environment yet, and a card that dies because one unapplied migration
+  // 404s is worse than a card that says it cannot load. This never touches
+  // the page-level error state above.
+  const leaveLoadFailed = Boolean(
+    leavePoliciesRes.error || leaveEntitlementsRes.error
+  );
+  const leavePolicies: LeavePolicyValue[] = (leavePoliciesRes.data ?? []).map(
+    (p) => ({
+      leaveType: p.leave_type,
+      annualDays: Number(p.annual_days) || 0,
+      carryOverMax: Number(p.carry_over_max) || 0,
+    })
+  );
+  // Distinct employees, not rows: one employee can hold up to four rows (one
+  // per leave type with a policy), and counting rows would overstate how
+  // many people are actually covered for the year.
+  const entitledEmployeeCount = new Set(
+    (leaveEntitlementsRes.data ?? []).map((e) => e.employee_id)
+  ).size;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -163,6 +201,62 @@ export default async function SettingsPage() {
             </a>{" "}
             to upgrade, downgrade or query an invoice.
           </Callout>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Palmtree className="size-4 text-muted-foreground" />
+            <CardTitle className="text-base">Leave</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {leaveLoadFailed ? (
+            <Callout variant="note" label="Couldn't load leave settings">
+              Leave policy and entitlements couldn&apos;t be loaded. Reload the
+              page before making any changes here.
+            </Callout>
+          ) : canManage ? (
+            <>
+              <LeavePolicyForm policies={leavePolicies} />
+
+              <Separator />
+
+              <GrantEntitlementsButton year={year} />
+
+              <p className="text-sm text-muted-foreground">
+                {entitledEmployeeCount === 0
+                  ? `No employees have a ${year} entitlement yet.`
+                  : `${entitledEmployeeCount} employee${
+                      entitledEmployeeCount === 1 ? "" : "s"
+                    } already ${
+                      entitledEmployeeCount === 1 ? "has" : "have"
+                    } a ${year} entitlement.`}
+              </p>
+            </>
+          ) : (
+            <div className="flex flex-col">
+              {leavePolicies.length === 0 && (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  No leave policy set yet.
+                </p>
+              )}
+              {leavePolicies.map((p) => (
+                <div
+                  key={p.leaveType}
+                  className="flex items-center justify-between border-b border-border py-3 last:border-0"
+                >
+                  <span className="capitalize">{p.leaveType}</span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {p.annualDays} days/yr · carry over up to {p.carryOverMax}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">{LEAVE_COUNTING_RULE}</p>
         </CardContent>
       </Card>
 

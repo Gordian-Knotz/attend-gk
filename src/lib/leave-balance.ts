@@ -20,6 +20,18 @@
  * Half-day requests are out of scope: `leave_requests` has no such column.
  */
 
+/**
+ * The counting rule, in the words shown next to a balance — on the staff
+ * page and, once a policy exists to set, on the admin settings card too.
+ * Kept here rather than duplicated at each call site: this sentence
+ * describes exactly what `countLeaveDays` does below, and prose describing
+ * behaviour that lives somewhere else is exactly the kind of thing that
+ * drifts out of sync with the code the moment either one changes alone.
+ */
+export const LEAVE_COUNTING_RULE =
+  "Leave is counted in calendar days, including weekends and public holidays. " +
+  "Only approved requests reduce your balance; pending ones are shown separately.";
+
 export type EntitlementRow = {
   leave_type: string;
   days_granted: number;

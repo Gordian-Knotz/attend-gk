@@ -3,7 +3,7 @@ import { Palmtree, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { localDateKey } from "@/lib/attendance-series";
-import { buildLeaveBalances } from "@/lib/leave-balance";
+import { buildLeaveBalances, LEAVE_COUNTING_RULE } from "@/lib/leave-balance";
 import { LeaveRequestDialog } from "../leave-request-dialog";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -128,10 +128,7 @@ export default async function LeavePage() {
           )}
         </CardContent>
       </Card>
-      <p className="text-xs text-muted-foreground">
-        Leave is counted in calendar days, including weekends and public holidays.
-        Only approved requests reduce your balance; pending ones are shown separately.
-      </p>
+      <p className="text-xs text-muted-foreground">{LEAVE_COUNTING_RULE}</p>
       <Card id="leave">
         <CardHeader>
           <div className="flex items-center justify-between">

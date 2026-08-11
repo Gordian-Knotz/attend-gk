@@ -144,6 +144,15 @@ export function ContactForm() {
       </div>
 
       <div className="flex flex-col gap-3 sm:col-span-2">
+        {/* Rendered unconditionally so a screen reader has a live region to
+            announce into. A node that only appears once `error` is truthy
+            is inserted after the failure already happened, and some screen
+            readers miss content that wasn't already in the accessibility
+            tree. The visible copy below stays conditional — this one is
+            sr-only, so there's no double message for sighted users. */}
+        <p role="alert" aria-atomic="true" className="sr-only">
+          {error}
+        </p>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button
           type="submit"

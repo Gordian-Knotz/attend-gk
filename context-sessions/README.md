@@ -12,7 +12,8 @@ v3 port (docs 09–10, plus corrections marked inline in 03, 04, 06, 07 and
 then the Railway deploy, the Activ-HR rename and four pieces of product work
 (doc 13, plus corrections in 08 and 12). Then **11 August 2026**: the `/super`
 tenant detail pages, a 28-finding review of the whole branch, and the first
-authenticated browser pass (doc 14, plus corrections in 03, 06, 09 and 12).
+authenticated browser pass (doc 14, plus corrections in 03, 06, 09 and 12), then
+the staff-routes split and notices reaching staff at last (doc 15).
 
 > **The product is called Activ-HR.** Renamed from AttendPAC on 10 Aug 2026,
 > user-visible strings only — the `--pac-*` design tokens, the `attendpac`
@@ -36,13 +37,27 @@ authenticated browser pass (doc 14, plus corrections in 03, 06, 09 and 12).
 | [12-platform-console-and-limits.md](12-platform-console-and-limits.md) | `/super`, rate limiting (and why auth had to move server-side first), cookie/JWT policy, and the caching rule |
 | [13-railway-rename-and-product-work.md](13-railway-rename-and-product-work.md) | The Railway deploy and what it found, the Activ-HR rename, the employee sidebar, Settings wired, and the landing-page changes |
 | [14-tenant-detail-and-first-authed-pass.md](14-tenant-detail-and-first-authed-pass.md) | `/super/orgs/[id]`, the 28-finding CodeRabbit review (including a rate-limiter bypass), migration 0012, and the first authenticated browser pass — which found the mobile dashboard broken |
+| [15-staff-routes-and-notices.md](15-staff-routes-and-notices.md) | The staff dashboard split into four routes, notices made visible to staff and targetable by role — and the rail that would have shown every site's notices to everyone if the migration had not gone first |
 | [coderabbit-findings-10aug.md](coderabbit-findings-10aug.md) | Raw output — all 90 findings by severity |
 
-## Where we left off — 11 Aug 2026 (tenant pages, reviewed, first authed pass)
+## Where we left off — 11 Aug 2026 (staff routes, notices, 0013 pending)
 
-`tsc`, `lint`, `build` (**17 routes + `ƒ Middleware`**), `npm test` 9/9,
-`npm run smoke` 107/107 and `npm run smoke:authed` 41/41 all green. On branch
+`tsc`, `lint`, `build` (**20 routes + `ƒ Middleware`**), `npm test` 15/15 and
+`npm run smoke` 107/107 green. `npm run smoke:authed` is **96/99** — all three
+failures are one assertion that cannot pass until migration 0013 is applied, and
+it was left failing rather than softened. On branch
 **`harden-security-audit`**, pushed, **not merged**.
+
+> **DO NOT DEPLOY BEFORE APPLYING MIGRATION 0013.** `postNotice` fails outright
+> without it — admins can post notices on the currently deployed build and could
+> not on this branch — and `/admin`'s notices card errors. The notices rail is
+> safe either way *now*, but only because it was changed to fail closed; before
+> that fix it would have shown every staff member every notice in the
+> organization, including other sites'. Read
+> [15](15-staff-routes-and-notices.md) before touching it.
+>
+> Order: **apply 0013 → seed a notice → deploy → re-run `smoke:authed`**,
+> expecting 99/99.
 
 > **Start here: [14](14-tenant-detail-and-first-authed-pass.md).** Three things
 > from it that change what you should do next:

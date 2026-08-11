@@ -14,8 +14,31 @@
  * "depends on server locale" defect now, without pretending to solve
  * multi-zone scheduling.
  */
-export const ORG_TIME_ZONE =
-  process.env.NEXT_PUBLIC_ORG_TIME_ZONE?.trim() || "Africa/Nairobi";
+const DEFAULT_TIME_ZONE = "Africa/Nairobi";
+
+/**
+ * `Intl.DateTimeFormat` throws on an unrecognised IANA name, and it would
+ * throw at render time on every page that formats a date — so an operator
+ * typo in this env var shouldn't reach it unvalidated. Checked once, here,
+ * rather than on every call to `partsInZone`.
+ */
+function resolveTimeZone(candidate: string | undefined): string {
+  const value = candidate?.trim();
+  if (!value) return DEFAULT_TIME_ZONE;
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone: value });
+    return value;
+  } catch {
+    console.warn(
+      `Unknown NEXT_PUBLIC_ORG_TIME_ZONE "${value}"; falling back to ${DEFAULT_TIME_ZONE}.`
+    );
+    return DEFAULT_TIME_ZONE;
+  }
+}
+
+export const ORG_TIME_ZONE = resolveTimeZone(
+  process.env.NEXT_PUBLIC_ORG_TIME_ZONE
+);
 
 /** Locale used for every user-facing date, so output is deterministic. */
 export const DISPLAY_LOCALE = "en-GB";

@@ -77,9 +77,15 @@ export async function deleteNotice(noticeId: string) {
   }
 
   const supabase = await createClient();
-  const query = supabase.from("notifications").delete({ count: "exact" }).eq("id", noticeId);
+  // Reassigned, not mutated in place: postgrest-js's filter builder happens to
+  // mutate `this` and return it today, so discarding `.eq()`'s return value
+  // used to work, but that is an implementation detail, not a contract. If a
+  // future version made builders immutable, the discarded call above would
+  // silently stop narrowing by org_id — deleting a notice by id alone, across
+  // organizations.
+  let query = supabase.from("notifications").delete({ count: "exact" }).eq("id", noticeId);
   if (employee.role !== "super_admin") {
-    query.eq("org_id", employee.orgId);
+    query = query.eq("org_id", employee.orgId);
   }
 
   const { error, count } = await query;

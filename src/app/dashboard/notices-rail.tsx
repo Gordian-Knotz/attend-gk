@@ -30,7 +30,15 @@ export async function NoticesRail() {
   const [noticesRes, dismissedRes] = await Promise.all([
     supabase
       .from("notifications")
-      .select("id, message, level, created_at")
+      // target_role is selected as a schema guard, not for use here: against
+      // a database that hasn't run migration 0013, target_role doesn't
+      // exist, so this select 400s, noticesFailed becomes true, and the rail
+      // fails closed into "Couldn't load notices" below. Without it, this
+      // query only names pre-0013 columns and succeeds against 0006's wider
+      // read policy (same org, no site/role narrowing) — silently showing
+      // every notice in the org, including ones pinned to other sites.
+      // Removing this column reintroduces that cross-site disclosure.
+      .select("id, message, level, created_at, target_role")
       .eq("org_id", employee.orgId)
       .order("created_at", { ascending: false })
       .limit(20),

@@ -34,7 +34,7 @@ export function PostNoticeDialog({
   sites: { id: string; name: string }[];
 }) {
   const router = useRouter();
-  const { role } = useAdminIdentity();
+  const { role, siteName } = useAdminIdentity();
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -83,8 +83,8 @@ export function PostNoticeDialog({
           <DialogTitle>Post a notice</DialogTitle>
           <DialogDescription>
             {isManager
-              ? "Everyone at your site sees this on the dashboard."
-              : "Shows on the admin overview for everyone in your organization."}
+              ? "Staff see this on their dashboard. Narrow who with the role selector below — it always stays within your own site."
+              : "Staff see this on their dashboard, admins on the admin overview. The selectors below set who — everyone in your organization by default."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -156,7 +156,17 @@ export function PostNoticeDialog({
             Goes to{" "}
             <span className="font-medium text-foreground">
               {describeAudience({
-                siteName: siteId === "all" ? null : sites.find((s) => s.id === siteId)?.name ?? null,
+                // Managers never render the site Select, so siteId stays the
+                // "all" placeholder for them — but postNotice() still pins
+                // the notice to their own site (identity.siteId from
+                // getEmployeeContext). Naming that site here, rather than
+                // reading siteId as "no site filter", keeps this preview
+                // from claiming an org-wide audience the notice won't reach.
+                siteName: isManager
+                  ? siteName
+                  : siteId === "all"
+                    ? null
+                    : sites.find((s) => s.id === siteId)?.name ?? null,
                 targetRole: targetRole === "all" ? null : targetRole,
               })}
             </span>

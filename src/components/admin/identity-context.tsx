@@ -8,6 +8,8 @@ export type AdminIdentity = {
   role: "staff" | "manager" | "org_admin" | "super_admin";
   orgId: string;
   orgName: string;
+  siteId: string | null;
+  siteName: string | null;
 };
 
 const AdminIdentityContext = React.createContext<AdminIdentity | null>(null);

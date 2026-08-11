@@ -55,6 +55,8 @@ export default async function AdminLayout({
         role: employee.role,
         orgId: employee.orgId,
         orgName: employee.orgName,
+        siteId: employee.siteId,
+        siteName: employee.siteName,
       }}
     >
       <div className="flex h-screen overflow-hidden">

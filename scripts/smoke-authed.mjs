@@ -46,6 +46,17 @@ const MATRIX = [
   { theme: "dark", w: 320, h: 844, label: "small" },
 ];
 
+/**
+ * The three routes beyond the `/dashboard` overview, each owning its own
+ * query and its own failure state (see doc 11). `nav` is the sidebar label
+ * that `aria-current="page"` should land on once the route is active.
+ */
+const ROUTES = [
+  { path: "/dashboard/shifts", expect: /upcoming shifts/i, nav: "Shifts" },
+  { path: "/dashboard/attendance", expect: /attendance history/i, nav: "History" },
+  { path: "/dashboard/leave", expect: /leave/i, nav: "Leave" },
+];
+
 let failures = 0;
 let checks = 0;
 
@@ -116,7 +127,11 @@ for (const entry of MATRIX) {
 
   // Trap 2: case-insensitive — the badges are uppercased by CSS.
   report(/\bin\b|\bout\b/i.test(text), "attendance rows render");
-  report(/annual|sick|no leave/i.test(text), "leave section renders");
+  // The leave content this used to check moved off /dashboard onto
+  // /dashboard/leave (see the ROUTES loop below) when the dashboard split
+  // into four routes. This slot now checks the notices rail instead, seeded
+  // once for the demo org — see task 6's seed attempt.
+  report(/payroll cut-off/i.test(text), "a targeted notice reaches the staff rail");
   report(/clocked (in|out)/i.test(text), "clock-in widget states current status");
 
   // Trap 3
@@ -146,6 +161,56 @@ for (const entry of MATRIX) {
       layout.navLeft === 0 && layout.navTop === 0,
       "mobile: rail sits at the top-left, not beside the content",
       `left=${layout.navLeft} top=${layout.navTop}`
+    );
+  }
+
+  // The other three staff routes. Each owns its own content and its own
+  // failure state (doc 11), and the sidebar's active item must follow the
+  // URL rather than staying wherever it was on sign-in.
+  for (const r of ROUTES) {
+    await page.goto(`${BASE}${r.path}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(800);
+    const t = await page.evaluate(() => document.body.innerText);
+    report(r.expect.test(t), `${r.path} renders its own content`);
+
+    if (r.path === "/dashboard/leave") {
+      // Moved here from the /dashboard block above: this content lived on
+      // the overview page before the dashboard split into four routes.
+      report(/annual|sick|no leave/i.test(t), "leave section renders");
+    }
+
+    const current = await page.evaluate(
+      () => document.querySelector('[aria-current="page"]')?.textContent?.trim() ?? null
+    );
+    report(current === r.nav, `${r.path} marks "${r.nav}" as the current page`, String(current));
+
+    const of2 = await page.evaluate(() => ({
+      s: document.documentElement.scrollWidth,
+      c: document.documentElement.clientWidth,
+    }));
+    report(of2.s <= of2.c, `${r.path} no horizontal overflow`, `${of2.s} <= ${of2.c}`);
+  }
+
+  // The rail and the sidebar are two different <aside> elements once the
+  // notices rail ships. `document.querySelector("aside")` above deliberately
+  // resolves to the sidebar, because it is first in DOM order — the rail
+  // lives inside <main>, so it must be queried scoped to that, or this
+  // silently re-measures the sidebar and passes for the wrong reason.
+  const rail = await page.evaluate(() => {
+    const main = document.querySelector("main");
+    const aside = main?.querySelector("aside");
+    if (!aside) return null;
+    const a = aside.getBoundingClientRect();
+    const content = main.querySelector("div > div");
+    const c = content ? content.getBoundingClientRect() : null;
+    return { top: Math.round(a.top), left: Math.round(a.left), contentTop: c ? Math.round(c.top) : null };
+  });
+  report(rail !== null, "notices rail is present on this route");
+  if (rail && w < 1024) {
+    report(
+      rail.contentTop !== null && rail.top >= rail.contentTop,
+      "under lg the rail is below the content, not beside it",
+      JSON.stringify(rail)
     );
   }
 

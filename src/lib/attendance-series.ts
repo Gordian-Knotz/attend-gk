@@ -77,13 +77,20 @@ export function recentDays(
  * needs employment start/end dates on `employees`, which the schema doesn't
  * carry yet.
  */
+/**
+ * The absent cutoff itself, exported for the same reason as
+ * `attendance.ts`'s `LATE_CUTOFF_HOUR` — so `/admin/settings` can show the
+ * threshold it actually applies rather than a hand-typed copy.
+ */
+export const ABSENT_CUTOFF_HOUR = 9;
+
 export function buildDailySeries({
   days,
   events,
   leave,
   workforceIds,
   now = new Date(),
-  absentCutoffHour = 9,
+  absentCutoffHour = ABSENT_CUTOFF_HOUR,
 }: {
   days: Date[];
   events: SeriesEvent[];

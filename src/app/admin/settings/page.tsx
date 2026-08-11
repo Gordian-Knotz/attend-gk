@@ -3,6 +3,8 @@ import { MapPin, Building2, CreditCard, Clock } from "lucide-react";
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { createClient } from "@/lib/supabase/server";
 import { ORG_TIME_ZONE } from "@/lib/timezone";
+import { LATE_CUTOFF_HOUR, LATE_CUTOFF_MINUTE } from "@/lib/attendance";
+import { ABSENT_CUTOFF_HOUR } from "@/lib/attendance-series";
 import { SUPPORT_EMAIL } from "@/lib/brand";
 import { PageHeader } from "@/components/admin/page-header";
 import { Callout } from "@/components/callout";
@@ -11,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { OrgNameForm } from "./org-name-form";
 import { EditSiteDialog } from "./edit-site-dialog";
+
+const pad = (n: number) => String(n).padStart(2, "0");
 
 const BILLING_LABEL: Record<string, string> = {
   trialing: "On trial",
@@ -171,9 +175,11 @@ export default async function SettingsPage() {
                 Sites &amp; geofences
               </CardTitle>
             </div>
-            <Badge variant="outline">
-              {sites.length} site{sites.length === 1 ? "" : "s"}
-            </Badge>
+            {!loadFailed && (
+              <Badge variant="outline">
+                {sites.length} site{sites.length === 1 ? "" : "s"}
+              </Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent className="flex flex-col">
@@ -217,13 +223,15 @@ export default async function SettingsPage() {
             </div>
             <div className="flex flex-col gap-1">
               <dt className="font-label text-muted-foreground">Late after</dt>
-              <dd className="font-mono text-xs">07:15</dd>
+              <dd className="font-mono text-xs">
+                {pad(LATE_CUTOFF_HOUR)}:{pad(LATE_CUTOFF_MINUTE)}
+              </dd>
             </div>
             <div className="flex flex-col gap-1">
               <dt className="font-label text-muted-foreground">
                 Absent counted from
               </dt>
-              <dd className="font-mono text-xs">09:00</dd>
+              <dd className="font-mono text-xs">{pad(ABSENT_CUTOFF_HOUR)}:00</dd>
             </div>
           </dl>
 

@@ -64,6 +64,45 @@ export type LeaveRequestRow = {
   status: string;
 };
 
+/**
+ * How an entitlement becomes available over the year.
+ *
+ * `annual` — the whole allowance exists from 1 January. Today's behaviour and
+ * the default, so an org that never opts in sees no change.
+ *
+ * `monthly` — one twelfth per COMPLETED month. The current month is not yet
+ * earned: crediting it on the 1st would let someone take the leave and leave
+ * the company owing it.
+ */
+export type AccrualMode = "annual" | "monthly";
+
+/**
+ * Fraction of an annual entitlement earned by a given point in the year.
+ *
+ * `asOfMonth` is 1-12 and comes from the org's timezone, never the host clock.
+ * Returns whole days rounded to one decimal, matching `numeric(5,1)` — an
+ * accrued figure with fourteen decimal places is not a number anyone can check
+ * against a payslip.
+ *
+ * A mid-year joiner should accrue from their start month rather than January.
+ * That needs `employees.employment_start_date`, which is HR suite piece 1 and
+ * DOES NOT EXIST YET. Until it does, everyone accrues from January, and the UI
+ * says so rather than implying a precision that is not there.
+ */
+export function accruedDays(
+  annualDays: number,
+  mode: AccrualMode,
+  asOfMonth: number
+): number {
+  if (mode !== "monthly") return annualDays;
+
+  // Clamped rather than trusted: a month outside 1-12 means the caller derived
+  // it wrongly, and silently crediting a negative or a thirteenth month would
+  // be worse than pinning it.
+  const completed = Math.min(12, Math.max(0, Math.floor(asOfMonth) - 1));
+  return Math.round(((annualDays * completed) / 12) * 10) / 10;
+}
+
 export type LeaveBalance = {
   leaveType: string;
   granted: number;
@@ -174,8 +213,26 @@ export function buildLeaveBalances(input: {
    * the employee's favour: days come back, never get taken away.
    */
   holidays?: ReadonlySet<string>;
+  /**
+   * Per leave type, how the entitlement accrues. Types absent from the map keep
+   * the default `annual`, so an org with no accrual policy behaves exactly as
+   * before.
+   */
+  accrual?: ReadonlyMap<string, AccrualMode>;
+  /**
+   * Month 1-12 in the ORG's timezone, for accrual only. Required for `monthly`
+   * to mean anything; ignored entirely under `annual`.
+   */
+  asOfMonth?: number;
 }): LeaveBalance[] {
-  const { year, entitlements, requests, holidays = EMPTY_HOLIDAYS } = input;
+  const {
+    year,
+    entitlements,
+    requests,
+    holidays = EMPTY_HOLIDAYS,
+    accrual,
+    asOfMonth = 12,
+  } = input;
 
   const byType = new Map<string, LeaveBalance>();
 
@@ -197,7 +254,15 @@ export function buildLeaveBalances(input: {
 
   for (const entitlement of entitlements) {
     const balance = ensure(entitlement.leave_type);
-    balance.granted = Number(entitlement.days_granted) || 0;
+
+    // Carried days are NOT accrued. They were earned in a previous year and are
+    // available in full on 1 January; accruing them would take back days
+    // somebody had already worked for.
+    balance.granted = accruedDays(
+      Number(entitlement.days_granted) || 0,
+      accrual?.get(entitlement.leave_type) ?? "annual",
+      asOfMonth
+    );
     balance.carried = Number(entitlement.days_carried) || 0;
   }
 

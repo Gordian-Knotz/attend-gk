@@ -7,6 +7,7 @@ import {
   buildLeaveBalances,
   formatLeaveDays,
   LEAVE_COUNTING_RULE,
+  type AccrualMode,
 } from "@/lib/leave-balance";
 import { LeaveRequestDialog } from "../leave-request-dialog";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -41,6 +42,7 @@ export default async function LeavePage() {
     { data: leaveRequests, error: leaveError },
     { data: entitlements, error: entitlementsError },
     { data: holidayRows },
+    { data: policyRows },
   ] = await Promise.all([
     supabase
       .from("leave_requests")
@@ -64,6 +66,11 @@ export default async function LeavePage() {
       .select("holiday, name")
       .gte("holiday", `${year}-01-01`)
       .lte("holiday", `${year}-12-31`),
+    // Accrual mode per leave type. 0014 makes leave_policies readable by
+    // everyone in the org, so staff can see the rule their own balance is
+    // computed under. Error unhandled on purpose: without 0017 the column is
+    // absent, and the fallback is 'annual' — today's behaviour exactly.
+    supabase.from("leave_policies").select("leave_type, accrual_mode"),
   ]);
 
   const holidays = new Set((holidayRows ?? []).map((h) => h.holiday as string));
@@ -77,6 +84,18 @@ export default async function LeavePage() {
     ])
   );
   const todayKey = localDateKey(new Date());
+
+  const accrual = new Map(
+    (policyRows ?? []).map((p) => [
+      p.leave_type as string,
+      ((p as { accrual_mode?: string }).accrual_mode === "monthly"
+        ? "monthly"
+        : "annual") as AccrualMode,
+    ])
+  );
+  // The month comes from the org's timezone, like the year — accruing on the
+  // host's calendar would credit a month early or late for a Nairobi user.
+  const asOfMonth = Number(todayKey.slice(5, 7));
 
   // Reports its own failure — "No leave requests yet" would otherwise hide
   // a query error behind a state that looks perfectly normal.
@@ -111,6 +130,8 @@ export default async function LeavePage() {
           entitlements: entitlements ?? [],
           requests: leaveRequests ?? [],
           holidays,
+          accrual,
+          asOfMonth,
         });
 
   return (

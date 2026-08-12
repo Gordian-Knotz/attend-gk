@@ -74,6 +74,7 @@ export async function upsertLeavePolicy(input: {
   leaveType: string;
   annualDays: number;
   carryOverMax: number;
+  accrualMode?: "annual" | "monthly";
 }) {
   const employee = await getEmployeeContext();
   if (!employee || !["org_admin", "super_admin"].includes(employee.role)) {
@@ -94,6 +95,17 @@ export async function upsertLeavePolicy(input: {
     return { error: `Carry-over must be between 0 and ${MAX_POLICY_DAYS}.` };
   }
 
+  // Allow-listed rather than passed through, for the same reason leaveType is:
+  // an unexpected value would otherwise reach the check constraint and surface
+  // as a Postgres error instead of a sentence.
+  if (
+    input.accrualMode !== undefined &&
+    input.accrualMode !== "annual" &&
+    input.accrualMode !== "monthly"
+  ) {
+    return { error: "Accrual must be either all at once or monthly." };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.from("leave_policies").upsert(
     {
@@ -101,6 +113,7 @@ export async function upsertLeavePolicy(input: {
       leave_type: input.leaveType,
       annual_days: input.annualDays,
       carry_over_max: input.carryOverMax,
+      accrual_mode: input.accrualMode ?? "annual",
     },
     { onConflict: "org_id,leave_type" }
   );

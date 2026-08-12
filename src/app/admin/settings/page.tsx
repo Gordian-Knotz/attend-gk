@@ -63,7 +63,7 @@ export default async function SettingsPage() {
         .order("created_at", { ascending: true }),
       supabase
         .from("leave_policies")
-        .select("leave_type, annual_days, carry_over_max")
+        .select("leave_type, annual_days, carry_over_max, accrual_mode")
         .eq("org_id", employee.orgId),
       // Only admins are shown the entitled-employee count, so only admins run
       // the query. Not merely to save a round trip: its error feeds
@@ -102,6 +102,9 @@ export default async function SettingsPage() {
       leaveType: p.leave_type,
       annualDays: Number(p.annual_days) || 0,
       carryOverMax: Number(p.carry_over_max) || 0,
+      // Anything other than 'monthly' reads as 'annual', so a row written before
+      // 0017 (or by an older client) behaves exactly as it did before.
+      accrualMode: p.accrual_mode === "monthly" ? "monthly" : "annual",
     })
   );
   // Distinct employees, not rows: one employee can hold up to four rows (one

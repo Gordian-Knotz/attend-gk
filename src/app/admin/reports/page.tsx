@@ -9,6 +9,7 @@ import {
   compareLeaveTypes,
   formatLeaveDays,
   LEAVE_COUNTING_RULE,
+  type AccrualMode,
   type EntitlementRow,
   type LeaveRequestRow,
 } from "@/lib/leave-balance";
@@ -70,6 +71,7 @@ export default async function ReportsPage({
     entitlementsRes,
     leaveUtilizationRes,
     holidaysRes,
+    accrualRes,
   ] = await Promise.all([
       supabase.from("sites").select("id, name").eq("org_id", identity.orgId),
       supabase
@@ -114,6 +116,13 @@ export default async function ReportsPage({
         .select("holiday")
         .gte("holiday", `${year}-01-01`)
         .lte("holiday", `${year}-12-31`),
+      // Must match /dashboard/leave's read exactly, or utilization would be
+      // computed against a full-year entitlement while the employee sees an
+      // accrued one — two different denominators for the same person.
+      supabase
+        .from("leave_policies")
+        .select("leave_type, accrual_mode")
+        .eq("org_id", identity.orgId),
     ]);
 
   // Without this, a failed query fell through the `?? []` fallbacks and the
@@ -150,6 +159,16 @@ export default async function ReportsPage({
   const holidays = new Set(
     (holidaysRes.data ?? []).map((h) => h.holiday as string)
   );
+
+  const accrual = new Map(
+    (accrualRes.data ?? []).map((p) => [
+      p.leave_type as string,
+      ((p as { accrual_mode?: string }).accrual_mode === "monthly"
+        ? "monthly"
+        : "annual") as AccrualMode,
+    ])
+  );
+  const asOfMonth = Number(localDateKey(new Date()).slice(5, 7));
 
   const { data: orgEntitlements, error: entitlementsError } = entitlementsRes;
   const { data: orgLeaveRequestsForUtilization, error: utilizationRequestsError } =
@@ -201,6 +220,8 @@ export default async function ReportsPage({
         entitlements: entitlementsByEmployee.get(employeeId) ?? [],
         requests: requestsByEmployee.get(employeeId) ?? [],
         holidays,
+        accrual,
+        asOfMonth,
       });
       for (const b of balances) {
         const agg = byType.get(b.leaveType) ?? {

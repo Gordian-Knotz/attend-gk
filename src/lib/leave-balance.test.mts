@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { countLeaveDays, buildLeaveBalances, compareLeaveTypes } from "./leave-balance.ts";
+import {
+  countLeaveDays,
+  buildLeaveBalances,
+  compareLeaveTypes,
+  accruedDays,
+} from "./leave-balance.ts";
 
 test("a single day is one day", () => {
   assert.equal(countLeaveDays("2026-08-12", "2026-08-12"), 1);
@@ -249,4 +254,70 @@ test("holidays reduce days taken in a full balance, not just the day count", () 
   assert.equal(plain[0].remaining, 18);
   assert.equal(withHolidays[0].taken, 1);
   assert.equal(withHolidays[0].remaining, 20);
+});
+
+// --- Accrual ---------------------------------------------------------------
+
+test("annual mode ignores the month entirely", () => {
+  // Catches accrual being applied to everyone rather than only to opted-in
+  // policies — the failure that would silently cut every org's allowance.
+  assert.equal(accruedDays(21, "annual", 1), 21);
+  assert.equal(accruedDays(21, "annual", 7), 21);
+});
+
+test("monthly mode earns one twelfth per COMPLETED month", () => {
+  // January: nothing completed yet, so nothing earned. Crediting the current
+  // month on the 1st would let someone take leave they have not worked for.
+  assert.equal(accruedDays(12, "monthly", 1), 0);
+  assert.equal(accruedDays(12, "monthly", 2), 1);
+  assert.equal(accruedDays(12, "monthly", 7), 6);
+  assert.equal(accruedDays(12, "monthly", 12), 11);
+});
+
+test("monthly accrual rounds to one decimal, matching numeric(5,1)", () => {
+  // 21/12 = 1.75 a month. Three completed months is 5.25, which must not reach
+  // a payslip as 5.249999999999999.
+  assert.equal(accruedDays(21, "monthly", 4), 5.3);
+  assert.equal(accruedDays(21, "monthly", 5), 7);
+});
+
+test("a month outside 1-12 is clamped, never negative or over-credited", () => {
+  // Catches a caller deriving the month wrongly — 0-based is the classic — and
+  // being silently handed a negative allowance.
+  assert.equal(accruedDays(12, "monthly", 0), 0);
+  assert.equal(accruedDays(12, "monthly", -5), 0);
+  assert.equal(accruedDays(12, "monthly", 99), 12);
+});
+
+test("accrual reduces granted in a full balance, and only for the opted-in type", () => {
+  // Catches the accrual map being accepted but never consulted, and catches it
+  // being applied to every type rather than the ones configured for it.
+  const balances = buildLeaveBalances({
+    year: 2026,
+    entitlements: [
+      { leave_type: "annual", days_granted: 24, days_carried: 0 },
+      { leave_type: "compassionate", days_granted: 12, days_carried: 0 },
+    ],
+    requests: [],
+    accrual: new Map([["annual", "monthly" as const]]),
+    asOfMonth: 4,
+  });
+  const byType = Object.fromEntries(balances.map((b) => [b.leaveType, b]));
+  assert.equal(byType.annual.granted, 6);
+  assert.equal(byType.compassionate.granted, 12);
+});
+
+test("carried days are never accrued away", () => {
+  // Days earned in a previous year are available in full on 1 January.
+  // Accruing them would take back leave somebody had already worked for.
+  const balances = buildLeaveBalances({
+    year: 2026,
+    entitlements: [{ leave_type: "annual", days_granted: 24, days_carried: 5 }],
+    requests: [],
+    accrual: new Map([["annual", "monthly" as const]]),
+    asOfMonth: 1,
+  });
+  assert.equal(balances[0].granted, 0);
+  assert.equal(balances[0].carried, 5);
+  assert.equal(balances[0].remaining, 5);
 });

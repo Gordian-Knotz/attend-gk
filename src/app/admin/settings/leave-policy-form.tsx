@@ -21,6 +21,11 @@ export type LeavePolicyValue = {
   leaveType: string;
   annualDays: number;
   carryOverMax: number;
+  /**
+   * `annual` — the whole allowance exists from 1 January. `monthly` — one
+   * twelfth per completed month, so a balance grows through the year.
+   */
+  accrualMode: "annual" | "monthly";
 };
 
 /** One row per leave type, each saving independently. */
@@ -30,13 +35,15 @@ function PolicyRow({ policy }: { policy: LeavePolicyValue }) {
   const [carryOverMax, setCarryOverMax] = React.useState(
     String(policy.carryOverMax)
   );
+  const [accrualMode, setAccrualMode] = React.useState(policy.accrualMode);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [saved, setSaved] = React.useState(false);
 
   const dirty =
     Number(annualDays) !== policy.annualDays ||
-    Number(carryOverMax) !== policy.carryOverMax;
+    Number(carryOverMax) !== policy.carryOverMax ||
+    accrualMode !== policy.accrualMode;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -49,6 +56,7 @@ function PolicyRow({ policy }: { policy: LeavePolicyValue }) {
         leaveType: policy.leaveType,
         annualDays: Number(annualDays),
         carryOverMax: Number(carryOverMax),
+        accrualMode,
       });
 
       if (result?.error) {
@@ -116,6 +124,27 @@ function PolicyRow({ policy }: { policy: LeavePolicyValue }) {
         />
       </div>
 
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`accrual-${policy.leaveType}`} className="text-xs">
+          Accrual
+        </Label>
+        {/* A native select, not a new primitive. DS-01 has no select component
+            and this is a two-option choice — inventing one here would be the
+            first of its kind in the codebase for the smallest possible need. */}
+        <select
+          id={`accrual-${policy.leaveType}`}
+          className="h-9 rounded-[--radius] border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          value={accrualMode}
+          onChange={(e) => {
+            setAccrualMode(e.target.value as "annual" | "monthly");
+            setSaved(false);
+          }}
+        >
+          <option value="annual">All at once</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+
       <div className="flex items-center gap-2 self-center">
         <Button type="submit" size="sm" variant="outline" disabled={loading || !dirty}>
           {loading && <Loader2 className="animate-spin" />}
@@ -144,7 +173,12 @@ export function LeavePolicyForm({ policies }: { policies: LeavePolicyValue[] }) 
 
   const rows: LeavePolicyValue[] = LEAVE_TYPES.map(
     (leaveType) =>
-      byType.get(leaveType) ?? { leaveType, annualDays: 0, carryOverMax: 0 }
+      byType.get(leaveType) ?? {
+        leaveType,
+        annualDays: 0,
+        carryOverMax: 0,
+        accrualMode: "annual" as const,
+      }
   );
 
   return (

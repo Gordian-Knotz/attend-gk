@@ -32,6 +32,23 @@ export const LEAVE_COUNTING_RULE =
   "Leave is counted in calendar days, including weekends and public holidays. " +
   "Only approved requests reduce your balance; pending ones are shown separately.";
 
+/**
+ * Formats a day count for display, to at most one decimal place.
+ *
+ * `days_granted` and `days_carried` are `numeric(5,1)`, and a tenth is not
+ * exactly representable in binary floating point — so summing them across an
+ * organization can surface artifacts like `20.999999999`. Halves are exact and
+ * were never the hazard; tenths are, and `upsertLeavePolicy` accepts them.
+ *
+ * `Number(...)` after `toFixed` so a whole number renders as `21`, not `21.0`.
+ * Shared rather than written per surface: the staff page and the admin report
+ * print the same figures, and two formatters would eventually disagree on the
+ * same number in the same way two balance implementations would.
+ */
+export function formatLeaveDays(days: number): string {
+  return String(Number(days.toFixed(1)));
+}
+
 export type EntitlementRow = {
   leave_type: string;
   days_granted: number;

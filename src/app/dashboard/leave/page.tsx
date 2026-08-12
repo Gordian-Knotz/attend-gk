@@ -3,7 +3,11 @@ import { Palmtree, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { localDateKey } from "@/lib/attendance-series";
-import { buildLeaveBalances, LEAVE_COUNTING_RULE } from "@/lib/leave-balance";
+import {
+  buildLeaveBalances,
+  formatLeaveDays,
+  LEAVE_COUNTING_RULE,
+} from "@/lib/leave-balance";
 import { LeaveRequestDialog } from "../leave-request-dialog";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,11 +58,18 @@ export default async function LeavePage() {
   // a query error behind a state that looks perfectly normal.
   const leaveFailed = Boolean(leaveError);
 
-  // Migration 0014 may not be applied yet, so this table can 404. That means
-  // the feature isn't provisioned on this org — not that a read broke — so
-  // it renders as a note, not an error, and never fails the page. Kept as
-  // its own boolean, separate from `leaveFailed`, so a genuine requests-query
-  // error still gets its own error copy above.
+  // Migration 0014 may not be applied yet, so this table can 404. Rendered as
+  // a note rather than an error, and never fails the page: an unprovisioned
+  // feature is not a broken one. Kept as its own boolean, separate from
+  // `leaveFailed`, so a genuine requests-query error still gets its own error
+  // copy above.
+  //
+  // The copy deliberately does NOT assert which of the two it is. A timeout, a
+  // 500 or an RLS denial lands here too, and telling a provisioned customer
+  // their leave "isn't set up" would be a false statement about their own
+  // configuration. Distinguishing them would mean matching PostgREST error
+  // codes, which nobody here has verified against an unapplied migration — a
+  // wrong code match would reinstate the same lie while looking rigorous.
   const entitlementsFailed = Boolean(entitlementsError);
 
   // A balance is only trustworthy when both reads actually succeeded.
@@ -81,9 +92,15 @@ export default async function LeavePage() {
     <div className="flex flex-col gap-3">
       <Card id="leave-balance">
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Wallet className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base">Leave balance</CardTitle>
+          {/* Both cards on this page are scoped to `year`, so both say so.
+              Without it, an employee reading "No leave requests yet" on 2
+              January is told something false about their December request. */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wallet className="size-4 text-muted-foreground" />
+              <CardTitle className="text-base">Leave balance</CardTitle>
+            </div>
+            <Badge variant="outline">{year}</Badge>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
@@ -102,8 +119,9 @@ export default async function LeavePage() {
             </Callout>
           ) : entitlementsFailed ? (
             <Callout variant="note" label="Balances unavailable">
-              Leave balances aren&apos;t set up on this organization yet. Your
-              requests are listed below and are unaffected.
+              Your leave balances couldn&apos;t be loaded — they may not be set
+              up for this organization yet. Your requests are listed below and
+              are unaffected.
             </Callout>
           ) : balances.length === 0 ? (
             // Reachable in a real window: 0014 applied, but no admin has
@@ -125,11 +143,12 @@ export default async function LeavePage() {
                   <span className="font-medium">
                     {b.remaining === null
                       ? "Tracked, no allowance"
-                      : `${b.remaining} remaining`}
+                      : `${formatLeaveDays(b.remaining)} remaining`}
                   </span>
                   <span className="font-mono text-xs text-muted-foreground">
-                    {b.granted + b.carried} granted · {b.taken} taken ·{" "}
-                    {b.pending} pending
+                    {formatLeaveDays(b.granted + b.carried)} granted ·{" "}
+                    {formatLeaveDays(b.taken)} taken ·{" "}
+                    {formatLeaveDays(b.pending)} pending
                   </span>
                 </span>
               </div>
@@ -143,7 +162,8 @@ export default async function LeavePage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Palmtree className="size-4 text-muted-foreground" />
-              <CardTitle className="text-base">Leave</CardTitle>
+              <CardTitle className="text-base">Leave requests</CardTitle>
+              <Badge variant="outline">{year}</Badge>
             </div>
             <LeaveRequestDialog />
           </div>
@@ -156,7 +176,7 @@ export default async function LeavePage() {
           ) : (
             (!leaveRequests || leaveRequests.length === 0) && (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                No leave requests yet.
+                No leave requests in {year}.
               </p>
             )
           )}

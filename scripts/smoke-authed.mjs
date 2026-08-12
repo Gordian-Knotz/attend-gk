@@ -56,13 +56,20 @@ const ROUTES = [
   { path: "/dashboard/attendance", expect: /attendance history/i, nav: "History" },
   // Not /leave/i: EmployeeSidebar renders the literal nav label "Leave" on
   // every dashboard route (desktop aside and mobile rail alike), so that
-  // regex would pass here even if navigation silently failed and the
-  // browser never left the previous route. "Leave balances" is the page's
-  // own footnote, present regardless of whether the person has any leave
-  // rows — genuinely unique to this page. No apostrophe in the regex: the
-  // JSX writes `&apos;` but `innerText` yields a real `'` character, so
-  // matching past it rather than through it avoids an encoding trap.
-  { path: "/dashboard/leave", expect: /leave balances/i, nav: "Leave" },
+  // regex would pass here even if navigation silently failed and the browser
+  // never left the previous route. "Leave balance" is the balance card's
+  // TITLE, which renders unconditionally — outside every error, empty and
+  // populated branch — so this gate is independent of whether migration 0014
+  // has been applied.
+  //
+  // It was previously /leave balances/i, PLURAL, which matched nothing on this
+  // page except the text inside the `entitlementsFailed` callout. That made it
+  // pass only while 0014 was unapplied, and it would have started failing on
+  // every matrix entry the moment the migration ran — an assertion that broke
+  // precisely when the feature began working. The singular matches the title.
+  // No apostrophe in the regex: the JSX writes `&apos;` but `innerText` yields
+  // a real `'` character, so matching past it avoids an encoding trap.
+  { path: "/dashboard/leave", expect: /leave balance/i, nav: "Leave" },
 ];
 
 let failures = 0;

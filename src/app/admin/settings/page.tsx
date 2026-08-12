@@ -65,11 +65,22 @@ export default async function SettingsPage() {
         .from("leave_policies")
         .select("leave_type, annual_days, carry_over_max")
         .eq("org_id", employee.orgId),
-      supabase
-        .from("leave_entitlements")
-        .select("employee_id")
-        .eq("org_id", employee.orgId)
-        .eq("year", year),
+      // Only admins are shown the entitled-employee count, so only admins run
+      // the query. Not merely to save a round trip: its error feeds
+      // `leaveLoadFailed` below, which replaces the whole Leave card —
+      // including the read-only policy list a manager IS meant to see. A
+      // manager losing that list to a query that exists solely for the admin
+      // count is a correctness bug, and gating the query closes both.
+      canManage
+        ? supabase
+            .from("leave_entitlements")
+            .select("employee_id")
+            .eq("org_id", employee.orgId)
+            .eq("year", year)
+        : Promise.resolve({
+            data: [] as { employee_id: string }[],
+            error: null,
+          }),
     ]);
 
   // Both queries report their own failure. Doc 11: a failed query rendering as

@@ -7,6 +7,8 @@ import { buildTimesheet } from "@/lib/timesheet";
 import {
   buildLeaveBalances,
   compareLeaveTypes,
+  formatLeaveDays,
+  LEAVE_COUNTING_RULE,
   type EntitlementRow,
   type LeaveRequestRow,
 } from "@/lib/leave-balance";
@@ -409,8 +411,13 @@ export default async function ReportsPage({
               to try again.
             </Callout>
           ) : entitlementsError ? (
+            // Deliberately does not assert WHICH it is. A timeout, a 500 or an
+            // RLS denial lands here too, and telling a provisioned org their
+            // leave "isn't set up" is a false claim about their configuration.
+            // Same wording as /dashboard/leave, for the same reason.
             <Callout variant="note" label="Utilization unavailable">
-              Leave balances aren&apos;t set up on this organization yet.
+              Leave entitlements couldn&apos;t be loaded — they may not be set
+              up for this organization yet.
             </Callout>
           ) : utilizationRows.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
@@ -435,15 +442,15 @@ export default async function ReportsPage({
                         {u.leaveType}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
-                        {/* Display only — days_granted/days_carried are
-                            numeric(5,1), so summing halves across employees
-                            can surface float artifacts (e.g. 20.999999999).
-                            The percentage below keeps using the unrounded
-                            value. */}
-                        {u.granted.toFixed(1)}
+                        {/* Display only; the percentage below keeps using the
+                            unrounded values. Shared with the staff page so the
+                            two cannot format the same figure differently —
+                            see formatLeaveDays for why tenths, not halves,
+                            are the hazard. */}
+                        {formatLeaveDays(u.granted)}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
-                        {u.taken.toFixed(1)}
+                        {formatLeaveDays(u.taken)}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
                         {u.granted > 0
@@ -457,6 +464,12 @@ export default async function ReportsPage({
                   ))}
                 </TableBody>
               </Table>
+              {/* The rule these percentages are computed under. An admin
+                  reading a utilization figure needs it as much as an employee
+                  reading their own balance does. */}
+              <p className="pt-3 text-xs text-muted-foreground">
+                {LEAVE_COUNTING_RULE}
+              </p>
             </div>
           )}
         </CardContent>

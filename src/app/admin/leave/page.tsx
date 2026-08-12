@@ -1,9 +1,15 @@
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck, CalendarDays, Users } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { localDateKey } from "@/lib/attendance-series";
-import { countLeaveDays, LEAVE_COUNTING_RULE } from "@/lib/leave-balance";
+import {
+  countLeaveDays,
+  LEAVE_COUNTING_RULE,
+  type LeaveRequestRow,
+} from "@/lib/leave-balance";
+import { absencesOn } from "@/lib/leave-calendar";
+import { MonthCalendar } from "@/components/leave/month-calendar";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Callout } from "@/components/callout";
@@ -55,7 +61,7 @@ export default async function AdminLeavePage() {
         .eq("org_id", employee.orgId),
       supabase
         .from("public_holidays")
-        .select("holiday")
+        .select("holiday, name")
         .gte("holiday", `${year}-01-01`)
         .lte("holiday", `${year}-12-31`),
     ]);
@@ -67,7 +73,27 @@ export default async function AdminLeavePage() {
   const loadFailed = Boolean(error);
 
   const holidays = new Set((holidayRows ?? []).map((h) => h.holiday as string));
+  const holidayNames = new Map(
+    (holidayRows ?? []).map((h) => [
+      h.holiday as string,
+      (h as { name?: string }).name ?? "Public holiday",
+    ])
+  );
   const nameOf = new Map((staff ?? []).map((s) => [s.id as string, s.full_name as string]));
+
+  const todayKey = localDateKey(new Date());
+  const allRequests = (requests ?? []) as unknown as LeaveRequestRow[];
+
+  // Who is off today, and who is off in the next seven days. Approved only —
+  // `absencesOn` excludes pending on purpose, because rostering around a
+  // decision nobody has made is planning against a guess.
+  const offToday = absencesOn(allRequests, todayKey);
+  const upcoming = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(`${todayKey}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + i + 1);
+    const day = d.toISOString().slice(0, 10);
+    return { day, entries: absencesOn(allRequests, day) };
+  }).filter((d) => d.entries.length > 0);
 
   const pending = (requests ?? []).filter((r) => r.status === "pending");
   const decided = (requests ?? []).filter((r) => r.status !== "pending").slice(0, 25);
@@ -174,6 +200,76 @@ export default async function AdminLeavePage() {
               )}
             </CardContent>
           </Card>
+
+          <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="size-4 text-muted-foreground" />
+                  <CardTitle className="text-base">Team calendar</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <MonthCalendar
+                  year={year}
+                  month={Number(todayKey.slice(5, 7))}
+                  requests={allRequests}
+                  holidays={holidayNames}
+                  today={todayKey}
+                  showCounts
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Users className="size-4 text-muted-foreground" />
+                  <CardTitle className="text-base">Who&apos;s off</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4 text-sm">
+                <div>
+                  <p className="font-label mb-1 text-muted-foreground">Today</p>
+                  {offToday.length === 0 ? (
+                    <p className="text-muted-foreground">Everyone is available.</p>
+                  ) : (
+                    offToday.map((a) => (
+                      <div
+                        key={`${a.employeeId}-${a.startDate}`}
+                        className="flex items-center justify-between border-b border-border py-1.5 last:border-0"
+                      >
+                        <span className="truncate">
+                          {nameOf.get(a.employeeId) ?? "Unknown"}
+                        </span>
+                        <span className="capitalize text-xs text-muted-foreground">
+                          {a.leaveType}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div>
+                  <p className="font-label mb-1 text-muted-foreground">Next seven days</p>
+                  {upcoming.length === 0 ? (
+                    <p className="text-muted-foreground">Nobody is booked off.</p>
+                  ) : (
+                    upcoming.map((d) => (
+                      <div key={d.day} className="border-b border-border py-1.5 last:border-0">
+                        <p className="font-mono text-xs text-muted-foreground">{d.day}</p>
+                        <p className="truncate">
+                          {d.entries
+                            .map((a) => nameOf.get(a.employeeId) ?? "Unknown")
+                            .join(", ")}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <p className="text-xs text-muted-foreground">{LEAVE_COUNTING_RULE}</p>
         </>

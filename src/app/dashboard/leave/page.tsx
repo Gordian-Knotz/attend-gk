@@ -1,4 +1,4 @@
-import { Palmtree, Wallet } from "lucide-react";
+import { CalendarDays, Palmtree, Wallet } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getEmployeeContext } from "@/lib/supabase/employee";
@@ -12,6 +12,7 @@ import { LeaveRequestDialog } from "../leave-request-dialog";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Callout } from "@/components/callout";
+import { MonthCalendar } from "@/components/leave/month-calendar";
 
 const LEAVE_STATUS_VARIANT = {
   pending: "proposed",
@@ -60,12 +61,22 @@ export default async function LeavePage() {
     // failure mode is "charged a day you should not have been", never a crash.
     supabase
       .from("public_holidays")
-      .select("holiday")
+      .select("holiday, name")
       .gte("holiday", `${year}-01-01`)
       .lte("holiday", `${year}-12-31`),
   ]);
 
   const holidays = new Set((holidayRows ?? []).map((h) => h.holiday as string));
+
+  // The calendar wants names to label a day; the balance only needs the dates.
+  // Two shapes of the same read rather than two reads.
+  const holidayNames = new Map(
+    (holidayRows ?? []).map((h) => [
+      h.holiday as string,
+      (h as { name?: string }).name ?? "Public holiday",
+    ])
+  );
+  const todayKey = localDateKey(new Date());
 
   // Reports its own failure — "No leave requests yet" would otherwise hide
   // a query error behind a state that looks perfectly normal.
@@ -171,6 +182,32 @@ export default async function LeavePage() {
         </CardContent>
       </Card>
       <p className="text-xs text-muted-foreground">{LEAVE_COUNTING_RULE}</p>
+
+      {/* Rendered from the same `leaveRequests` the balance is computed from,
+          so the calendar and the number can never disagree. Hidden when that
+          read failed, for the same reason the balance is: a calendar drawn
+          from data that did not load would show an empty month, which reads as
+          "you have no leave booked". */}
+      {!leaveFailed && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CalendarDays className="size-4 text-muted-foreground" />
+              <CardTitle className="text-base">Your leave calendar</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <MonthCalendar
+              year={year}
+              month={Number(todayKey.slice(5, 7))}
+              requests={leaveRequests ?? []}
+              holidays={holidayNames}
+              today={todayKey}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <Card id="leave">
         <CardHeader>
           <div className="flex items-center justify-between">

@@ -8,6 +8,13 @@ import { upsertLeavePolicy } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 /**
  * The full set of leave types a policy row can exist for — mirrors 0014's
@@ -128,21 +135,21 @@ function PolicyRow({ policy }: { policy: LeavePolicyValue }) {
         <Label htmlFor={`accrual-${policy.leaveType}`} className="text-xs">
           Accrual
         </Label>
-        {/* A native select, not a new primitive. DS-01 has no select component
-            and this is a two-option choice — inventing one here would be the
-            first of its kind in the codebase for the smallest possible need. */}
-        <select
-          id={`accrual-${policy.leaveType}`}
-          className="h-9 rounded-[--radius] border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        <Select
           value={accrualMode}
-          onChange={(e) => {
-            setAccrualMode(e.target.value as "annual" | "monthly");
+          onValueChange={(v) => {
+            setAccrualMode(v as "annual" | "monthly");
             setSaved(false);
           }}
         >
-          <option value="annual">All at once</option>
-          <option value="monthly">Monthly</option>
-        </select>
+          <SelectTrigger id={`accrual-${policy.leaveType}`} className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="annual">All at once</SelectItem>
+            <SelectItem value="monthly">Monthly</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex items-center gap-2 self-center">

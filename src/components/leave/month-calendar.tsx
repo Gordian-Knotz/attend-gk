@@ -64,7 +64,7 @@ export function MonthCalendar({
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-[--radius] border border-border bg-border">
+      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-sm border border-border bg-border">
         {WEEKDAYS.map((d) => (
           <div
             key={d}
@@ -103,7 +103,7 @@ export function MonthCalendar({
                 <div className="mt-1 flex flex-wrap items-center gap-1">
                   {hasApproved && (
                     <span
-                      className="inline-flex items-center gap-1 rounded-[--radius] bg-[var(--pac-orange)]/15 px-1 text-[0.65rem] text-foreground"
+                      className="inline-flex items-center gap-1 rounded-sm bg-[var(--pac-orange)]/15 px-1 text-[0.65rem] text-foreground"
                       title={`${day.approved.length} on approved leave`}
                     >
                       <span className="size-1.5 rounded-full bg-[var(--pac-orange)]" />
@@ -112,7 +112,7 @@ export function MonthCalendar({
                   )}
                   {hasPending && (
                     <span
-                      className="inline-flex items-center gap-1 rounded-[--radius] border border-[var(--pac-orange)]/40 px-1 text-[0.65rem] text-muted-foreground"
+                      className="inline-flex items-center gap-1 rounded-sm border border-[var(--pac-orange)]/40 px-1 text-[0.65rem] text-muted-foreground"
                       title={`${day.pending.length} awaiting approval`}
                     >
                       {showCounts ? day.pending.length : "Req"}

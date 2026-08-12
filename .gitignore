@@ -45,3 +45,10 @@ yarn-error.log*
 next-env.d.ts
 
 public/@powersync
+
+# Internal development process — kept local, never published.
+# These are working notes about how the product was built (session-by-session
+# decisions, review findings, what was tried and rejected). They are useful to
+# whoever is building, and nobody else's business.
+context-sessions/
+README.md

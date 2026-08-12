@@ -4,6 +4,7 @@ import * as React from "react";
 import { useReducedMotion } from "motion/react";
 
 import Threads from "@/components/reactbits/Threads";
+import { isSoftwareWebGL } from "@/lib/webgl-support";
 
 /**
  * Animated line field behind the hero, ported from attend-v3.
@@ -45,16 +46,31 @@ import Threads from "@/components/reactbits/Threads";
  *
  * Skipped entirely under `prefers-reduced-motion`, and mounted only after
  * hydration so the WebGL context never blocks first paint.
+ *
+ * Also skipped when WebGL is rendering in software, which is a far bigger deal
+ * than it sounds: on the same build and URL, Lighthouse desktop scored 92 with
+ * a hardware GPU and 57 without, with total blocking time going from 180 ms to
+ * 35,970 ms. Anyone on a blocklisted GPU — and PageSpeed Insights itself, which
+ * has no GPU — was getting a page frozen for over half a minute for the sake of
+ * a background texture. See `isSoftwareWebGL` for how it is detected and why the
+ * unknown case is treated as hardware.
+ *
+ * The probe runs in the same effect as `mounted` rather than during render:
+ * touching `document` while rendering is what produced five React #418
+ * hydration mismatches in this codebase (doc 13), and this file's own
+ * `mounted` gate exists because of them.
  */
 export function HeroThreads() {
   const reduceMotion = useReducedMotion();
   const [mounted, setMounted] = React.useState(false);
+  const [softwareGL, setSoftwareGL] = React.useState(false);
 
   React.useEffect(() => {
+    setSoftwareGL(isSoftwareWebGL());
     setMounted(true);
   }, []);
 
-  if (!mounted || reduceMotion) return null;
+  if (!mounted || reduceMotion || softwareGL) return null;
 
   return (
     <div

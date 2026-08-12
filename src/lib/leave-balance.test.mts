@@ -175,3 +175,78 @@ test("a numeric column arriving as a string still adds as a number", () => {
   });
   assert.equal(balances[0].remaining, 24);
 });
+
+// --- Public holidays -------------------------------------------------------
+// Each of these names the broken implementation it catches. This plan has
+// already shipped six assertions that could not fail; a holiday test that still
+// passes when holidays are ignored would be the seventh.
+
+test("a holiday inside the range takes a day off the charge", () => {
+  // Catches: holidays being accepted and then ignored. The same range without
+  // the holiday is asserted alongside, so the test cannot pass unless the
+  // parameter is what made the difference.
+  const withHoliday = countLeaveDays(
+    "2026-08-12",
+    "2026-08-16",
+    new Set(["2026-08-14"])
+  );
+  const without = countLeaveDays("2026-08-12", "2026-08-16", new Set());
+  assert.equal(without, 5);
+  assert.equal(withHoliday, 4);
+});
+
+test("a holiday outside the range changes nothing", () => {
+  // Catches: subtracting the size of the holiday set, or any filter that looks
+  // at holidays for the whole year rather than the days actually requested.
+  assert.equal(
+    countLeaveDays("2026-08-12", "2026-08-16", new Set(["2026-12-25", "2026-01-01"])),
+    5
+  );
+});
+
+test("a holiday on a weekend is deducted once, not twice", () => {
+  // Weekends are NOT excluded — only holidays were. 15 Aug 2026 is a Saturday,
+  // so a holiday that day must remove exactly one day. Catches an
+  // implementation that tries to reconcile the two rules and double-counts, and
+  // proves the two remain independent.
+  assert.equal(
+    countLeaveDays("2026-08-14", "2026-08-17", new Set(["2026-08-15"])),
+    3
+  );
+});
+
+test("a request made entirely of holidays costs nothing", () => {
+  // Catches an off-by-one that leaves a floor of 1, and confirms the subtraction
+  // cannot go negative for a legitimate range.
+  assert.equal(
+    countLeaveDays("2026-12-25", "2026-12-26", new Set(["2026-12-25", "2026-12-26"])),
+    0
+  );
+});
+
+test("holidays reduce days taken in a full balance, not just the day count", () => {
+  // Catches the parameter being threaded into countLeaveDays but not through
+  // buildLeaveBalances — the two are separate wiring mistakes, and only this
+  // one reaches the screen.
+  const args = {
+    year: 2026,
+    entitlements: [{ leave_type: "annual", days_granted: 21, days_carried: 0 }],
+    requests: [
+      {
+        leave_type: "annual",
+        start_date: "2026-12-24",
+        end_date: "2026-12-26",
+        status: "approved",
+      },
+    ],
+  };
+  const plain = buildLeaveBalances(args);
+  const withHolidays = buildLeaveBalances({
+    ...args,
+    holidays: new Set(["2026-12-25", "2026-12-26"]),
+  });
+  assert.equal(plain[0].taken, 3);
+  assert.equal(plain[0].remaining, 18);
+  assert.equal(withHolidays[0].taken, 1);
+  assert.equal(withHolidays[0].remaining, 20);
+});

@@ -72,11 +72,37 @@ not be.
 
 ### 2. Who can read personal data?
 
-This is the question that matters most and it has no default answer. Today
-`employees` is org-readable, so any colleague can list the roster. A home address
-and a date of birth cannot inherit that.
+> **RESOLVED 12 August 2026 — and it overrides the proposal below.** The tiers
+> are: **`super_admin`, `org_admin` and `manager` read personal data. Staff read
+> and edit their own record only, and no colleague's.**
+>
+> This **reverses two of the recommendations below**, deliberately and with the
+> consequences stated:
+>
+> - **`super_admin` is included.** The argument below for excluding the vendor
+>   was put to the product owner and not accepted. It is their product and their
+>   call. What it means concretely: the vendor can read home addresses, dates of
+>   birth, next of kin, national IDs and KRA PINs **across every tenant**. In
+>   Kenya that engages the Data Protection Act 2019, and it is ordinarily a
+>   contractual matter with each tenant rather than only a technical one. **The
+>   migration must carry this reasoning in a comment** — not because the decision
+>   is wrong, but because the next person to read the policy will otherwise
+>   assume it was an oversight and "fix" it.
+> - **`manager` is included.** The proposal below argued a shift manager does not
+>   need a next of kin. Overridden.
+>
+> **Staff self-access is confirmed**, which the proposal already assumed and
+> which piece 5 depends on: a hire cannot submit their own details if they cannot
+> read their own row. It also matches a data subject's right of access under the
+> DPA. "No staff" means no staff may read **another** employee's personal data —
+> that is the restriction, and it is the one RLS must actually enforce.
+>
+> Net effect on the migration: `employee_profiles` follows the ordinary four-tier
+> read model after all, plus a self-row policy. The "opposite of every other
+> policy in the codebase" warning below **no longer applies** — which removes the
+> single hardest thing about this table.
 
-Proposed tiers, to be confirmed:
+Proposed tiers, superseded by the ruling above and kept for the reasoning:
 
 - **The employee** — reads and edits their own, some fields needing approval.
 - **`org_admin`** — reads all in their org. It is an HR function.
@@ -135,10 +161,15 @@ conservative one.
 
 ## What to do next
 
-1. Confirm the read tiers in decision 2, particularly that the vendor
-   (`super_admin`) is excluded from personal data. Everything else follows from it.
+1. ~~Confirm the read tiers in decision 2~~ — **answered 12 Aug 2026.**
+   `super_admin` + `org_admin` + `manager` read personal data; staff read and
+   edit only their own row. See the ruling in decision 2. **This unblocks the
+   whole document.**
 2. Build piece 1 on its own. It is a small migration plus two function changes,
    and it removes a known-wrong number from reports.
 3. Then spec piece 5 — the onboarding process — before designing any fields.
 
-Nothing in this document should be implemented until 1 is answered.
+~~Nothing in this document should be implemented until 1 is answered.~~ The
+blocker is cleared. Piece 1 is the next thing to build and does not depend on any
+remaining decision: `employees` already carries no personal data, so adding two
+date columns needs none of decision 2's tiers.

@@ -62,8 +62,15 @@ export default async function ReportsPage({
   // about which year "this year" means.
   const year = Number(localDateKey(new Date()).slice(0, 4));
 
-  const [sitesRes, workforceRes, eventsRes, leaveRes, entitlementsRes, leaveUtilizationRes] =
-    await Promise.all([
+  const [
+    sitesRes,
+    workforceRes,
+    eventsRes,
+    leaveRes,
+    entitlementsRes,
+    leaveUtilizationRes,
+    holidaysRes,
+  ] = await Promise.all([
       supabase.from("sites").select("id, name").eq("org_id", identity.orgId),
       supabase
         .from("employees")
@@ -96,6 +103,17 @@ export default async function ReportsPage({
         .eq("org_id", identity.orgId)
         .gte("start_date", `${year}-01-01`)
         .lte("start_date", `${year}-12-31`),
+      // Same read as /dashboard/leave, and it must stay the same or the two
+      // surfaces would charge the same request differently — the exact
+      // disagreement the shared balance module exists to prevent. RLS scopes it
+      // to national rows plus this org's, so no org filter. Error deliberately
+      // unhandled: 0015 may be unapplied, and the empty-set fallback is simply
+      // the pre-0015 behaviour.
+      supabase
+        .from("public_holidays")
+        .select("holiday")
+        .gte("holiday", `${year}-01-01`)
+        .lte("holiday", `${year}-12-31`),
     ]);
 
   // Without this, a failed query fell through the `?? []` fallbacks and the
@@ -129,6 +147,10 @@ export default async function ReportsPage({
   // apart on /dashboard/leave — a genuine error in either read should still
   // be traceable to its own query, even though both currently render the
   // same note here.
+  const holidays = new Set(
+    (holidaysRes.data ?? []).map((h) => h.holiday as string)
+  );
+
   const { data: orgEntitlements, error: entitlementsError } = entitlementsRes;
   const { data: orgLeaveRequestsForUtilization, error: utilizationRequestsError } =
     leaveUtilizationRes;
@@ -178,6 +200,7 @@ export default async function ReportsPage({
         year,
         entitlements: entitlementsByEmployee.get(employeeId) ?? [],
         requests: requestsByEmployee.get(employeeId) ?? [],
+        holidays,
       });
       for (const b of balances) {
         const agg = byType.get(b.leaveType) ?? {

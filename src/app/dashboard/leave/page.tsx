@@ -39,6 +39,7 @@ export default async function LeavePage() {
   const [
     { data: leaveRequests, error: leaveError },
     { data: entitlements, error: entitlementsError },
+    { data: holidayRows },
   ] = await Promise.all([
     supabase
       .from("leave_requests")
@@ -52,7 +53,19 @@ export default async function LeavePage() {
       .select("leave_type, days_granted, days_carried")
       .eq("employee_id", employee.id)
       .eq("year", year),
+    // National rows plus this org's own — RLS decides which, so no org filter
+    // here. Errors are swallowed on purpose: migration 0015 may be unapplied,
+    // and a missing holiday table must not take down a page that works. The
+    // fallback is an empty set, which is exactly the pre-0015 behaviour, so the
+    // failure mode is "charged a day you should not have been", never a crash.
+    supabase
+      .from("public_holidays")
+      .select("holiday")
+      .gte("holiday", `${year}-01-01`)
+      .lte("holiday", `${year}-12-31`),
   ]);
+
+  const holidays = new Set((holidayRows ?? []).map((h) => h.holiday as string));
 
   // Reports its own failure — "No leave requests yet" would otherwise hide
   // a query error behind a state that looks perfectly normal.
@@ -86,6 +99,7 @@ export default async function LeavePage() {
           year,
           entitlements: entitlements ?? [],
           requests: leaveRequests ?? [],
+          holidays,
         });
 
   return (

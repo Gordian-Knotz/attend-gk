@@ -29,8 +29,9 @@
  * drifts out of sync with the code the moment either one changes alone.
  */
 export const LEAVE_COUNTING_RULE =
-  "Leave is counted in calendar days, including weekends and public holidays. " +
-  "Only approved requests reduce your balance; pending ones are shown separately.";
+  "Leave is counted in calendar days, including weekends but excluding public " +
+  "holidays. Only approved requests reduce your balance; pending ones are " +
+  "shown separately.";
 
 /**
  * Formats a day count for display, to at most one decimal place.
@@ -94,6 +95,9 @@ export function compareLeaveTypes(a: string, b: string): number {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Shared empty set, so the default argument allocates nothing per call. */
+const EMPTY_HOLIDAYS: ReadonlySet<string> = new Set<string>();
+
 /**
  * Parses `YYYY-MM-DD` to a UTC midnight timestamp.
  *
@@ -109,7 +113,31 @@ function utcMidnight(date: string): number {
   return Date.UTC(Number(y), Number(m) - 1, Number(d));
 }
 
-export function countLeaveDays(startDate: string, endDate: string): number {
+/**
+ * Calendar days between two dates inclusive, minus any public holiday falling
+ * inside the range.
+ *
+ * `holidays` is a set of `YYYY-MM-DD` strings and is **passed in, never fetched
+ * here**. Keeping this module free of I/O is what lets the whole balance be
+ * tested under `node --test` with no database, which is the property it exists
+ * for. An empty set reproduces the original behaviour exactly.
+ *
+ * Weekends are still counted. Only holidays were excluded — the original
+ * reasoning for weekends (guards and logistics staff work them, so a weekend
+ * inside a leave period genuinely is leave) was never reversed.
+ *
+ * Exclusion is unconditional and does not consult the roster. A leave request
+ * spanning a holiday is not charged for it whether or not the person would have
+ * been rostered, because roster-matched counting would make the same request
+ * count differently depending on when you looked — `shifts` is only populated
+ * about a fortnight ahead. A balance that moves on its own is worse than a
+ * simple rule stated plainly.
+ */
+export function countLeaveDays(
+  startDate: string,
+  endDate: string,
+  holidays: ReadonlySet<string> = EMPTY_HOLIDAYS
+): number {
   const start = utcMidnight(startDate);
   const end = utcMidnight(endDate);
 
@@ -118,15 +146,36 @@ export function countLeaveDays(startDate: string, endDate: string): number {
   // that appears to cost nothing and can be spotted.
   if (Number.isNaN(start) || Number.isNaN(end) || end < start) return 0;
 
-  return Math.round((end - start) / DAY_MS) + 1;
+  const total = Math.round((end - start) / DAY_MS) + 1;
+  if (holidays.size === 0) return total;
+
+  // Walk the range rather than filtering the holiday set: the set is every
+  // holiday the org knows about across all years, and a request is a handful of
+  // days. Iterating the shorter side also means a holiday outside the range
+  // cannot subtract anything, which is its own easy bug.
+  let holidayCount = 0;
+  for (let t = start; t <= end; t += DAY_MS) {
+    if (holidays.has(new Date(t).toISOString().slice(0, 10))) holidayCount += 1;
+  }
+
+  return total - holidayCount;
 }
 
 export function buildLeaveBalances(input: {
   year: number;
   entitlements: EntitlementRow[];
   requests: LeaveRequestRow[];
+  /**
+   * `YYYY-MM-DD` public holidays, national plus this org's own. Optional so
+   * every existing caller keeps its current behaviour until it passes them.
+   *
+   * Note that supplying these **retroactively changes historical balances** —
+   * there is no stored `days_taken` to freeze, by design. Movement is always in
+   * the employee's favour: days come back, never get taken away.
+   */
+  holidays?: ReadonlySet<string>;
 }): LeaveBalance[] {
-  const { year, entitlements, requests } = input;
+  const { year, entitlements, requests, holidays = EMPTY_HOLIDAYS } = input;
 
   const byType = new Map<string, LeaveBalance>();
 
@@ -157,7 +206,7 @@ export function buildLeaveBalances(input: {
     // so this one check screens out both bad data and empty ranges before the
     // year is read. Do NOT guard with `utcMidnight(x) !== Number.NaN` — that
     // comparison is always true, because NaN is not equal to itself.
-    const days = countLeaveDays(request.start_date, request.end_date);
+    const days = countLeaveDays(request.start_date, request.end_date, holidays);
     if (days === 0) continue;
 
     // Attributed to the year its start date falls in. A request spanning New

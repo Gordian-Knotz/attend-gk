@@ -131,6 +131,13 @@ test("invoiceAmount rounds to the nearest cent", () => {
   assert.equal(invoiceAmount(1, 3.005), 3.01);
 });
 
+test("invoiceAmount survives a near-miss IEEE 754 boundary", () => {
+  // 1 * 1.005 * 100 === 100.49999999999999 in IEEE 754, one ULP short of the
+  // 100.5 the decimal math implies — a plain Math.round truncates this to
+  // $1.00 without the Number.EPSILON nudge.
+  assert.equal(invoiceAmount(1, 1.005), 1.01);
+});
+
 test("formatUsd renders as a dollar amount with two decimal places", () => {
   assert.equal(formatUsd(96), "$96.00");
   assert.equal(formatUsd(209.93), "$209.93");

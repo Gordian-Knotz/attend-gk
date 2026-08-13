@@ -60,9 +60,16 @@ export function countBillableSeats(
  * trusting `seats * unitPriceUsd` to land exactly on two decimal places —
  * IEEE 754 does not guarantee that, and an invoice is the wrong place to
  * find out.
+ *
+ * The `+ Number.EPSILON` is load-bearing, not decorative: `1 * 1.005 * 100`
+ * evaluates to `100.49999999999999` in IEEE 754, one ULP short of the
+ * `100.5` the decimal math implies, so a plain `Math.round` truncates it to
+ * `$1.00` instead of `$1.01`. Adding `Number.EPSILON` before rounding nudges
+ * only that class of near-miss back across the boundary without moving any
+ * value that wasn't already sitting on it.
  */
 export function invoiceAmount(seats: number, unitPriceUsd: number): number {
-  return Math.round(seats * unitPriceUsd * 100) / 100;
+  return Math.round((seats * unitPriceUsd + Number.EPSILON) * 100) / 100;
 }
 
 export function formatUsd(amountUsd: number): string {

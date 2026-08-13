@@ -15,6 +15,7 @@ import { PostNoticeDialog } from "./notice-dialog";
 import { DeleteNoticeButton } from "./dismiss-notice-button";
 import { PageHeader } from "@/components/admin/page-header";
 import { Callout } from "@/components/callout";
+import { RoadmapCard } from "@/components/roadmap-card";
 import { StatValue } from "@/components/site/stat-value";
 import { BentoGrid, BentoCard } from "@/components/motion/bento";
 import {
@@ -458,6 +459,14 @@ export default async function AdminOverviewPage() {
           </CardContent>
         </BentoCard>
       </BentoGrid>
+
+      {/* Last on the page on purpose: this screen's job is telling an admin
+          who is on site right now, and a roadmap is the least urgent thing
+          on it. Content lives in src/lib/roadmap.ts, shared with
+          /dashboard so the two surfaces can't drift apart. */}
+      <div className="mt-4">
+        <RoadmapCard audience="admin" />
+      </div>
     </div>
   );
 }

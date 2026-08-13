@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { CheckInWidget } from "./checkin-widget";
 import { Callout } from "@/components/callout";
+import { RoadmapCard } from "@/components/roadmap-card";
 
 /**
  * The `/dashboard` overview: just the clock-in widget.
@@ -59,21 +60,28 @@ export default async function DashboardPage() {
     : siteRes.data?.sites;
 
   return (
-    <CheckInWidget
-      siteName={employee.siteName}
-      geofence={
-        site
-          ? {
-              lat: site.geofence_lat,
-              lng: site.geofence_lng,
-              radiusM: site.geofence_radius_m,
-            }
-          : null
-      }
-      initialLastEvent={
-        (lastEventRes.data?.event_type as "check_in" | "check_out" | undefined) ??
-        null
-      }
-    />
+    <div className="flex flex-col gap-4">
+      <CheckInWidget
+        siteName={employee.siteName}
+        geofence={
+          site
+            ? {
+                lat: site.geofence_lat,
+                lng: site.geofence_lng,
+                radiusM: site.geofence_radius_m,
+              }
+            : null
+        }
+        initialLastEvent={
+          (lastEventRes.data?.event_type as "check_in" | "check_out" | undefined) ??
+          null
+        }
+      />
+
+      {/* Below the widget, always. Clocking in is why somebody opens this
+          page; the roadmap must never push that button off the screen on a
+          phone. Staff see a filtered list — src/lib/roadmap.ts. */}
+      <RoadmapCard audience="staff" />
+    </div>
   );
 }

@@ -111,10 +111,16 @@ export function AttendanceMonthCalendar({
               {Number(day.date.slice(8, 10))}
             </span>
             {day.status && day.status !== "present" && (
-              <span
-                aria-hidden
-                className={cn("size-1.5 rounded-full", STATUS_DOT[day.status])}
-              />
+              <>
+                <span
+                  aria-hidden
+                  className={cn("size-1.5 rounded-full", STATUS_DOT[day.status])}
+                />
+                {/* The dot and its `title` attribute both fail on a touch
+                    device with no hover — a screen reader needs the status
+                    as text, not just color plus a tooltip. */}
+                <span className="sr-only">{STATUS_LABEL[day.status]}</span>
+              </>
             )}
           </div>
         ))}

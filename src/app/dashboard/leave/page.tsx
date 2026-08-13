@@ -205,7 +205,11 @@ export default async function LeavePage() {
                   {/* No meter for a type with no entitlement — "tracked, no
                       allowance" has no limit to be a ratio against. */}
                   {b.remaining !== null && grantedTotal > 0 && (
-                    <Meter value={b.taken} max={grantedTotal} />
+                    <Meter
+                      value={b.taken}
+                      max={grantedTotal}
+                      label={`${b.leaveType} leave taken`}
+                    />
                   )}
                 </div>
               );

@@ -14,20 +14,30 @@ import { cn } from "@/lib/utils";
 export function Meter({
   value,
   max,
+  label,
   className,
 }: {
   value: number;
   max: number;
+  /** Accessible name — a screen reader announces "progressbar" with no name
+   *  otherwise. Optional because most callers already print the same value
+   *  as visible text next to the meter, which the label would only repeat. */
+  label?: string;
   className?: string;
 }) {
-  const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
+  // A meter with nothing to be a ratio of has no valid range to report —
+  // `aria-valuemax` of 0 (or less) is an invalid range, not a 0% one.
+  const hasRange = max > 0;
+  const pct = hasRange ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
+  const valueNow = hasRange ? Math.min(max, Math.max(0, Math.round(value * 10) / 10)) : 0;
 
   return (
     <div
       role="progressbar"
-      aria-valuenow={Math.round(value * 10) / 10}
+      aria-label={label}
+      aria-valuenow={hasRange ? valueNow : undefined}
       aria-valuemin={0}
-      aria-valuemax={max}
+      aria-valuemax={hasRange ? max : undefined}
       className={cn("h-1.5 w-full overflow-hidden rounded-sm bg-primary/15", className)}
     >
       <div

@@ -482,7 +482,12 @@ export default async function ReportsPage({
                       <span className="w-28 shrink-0 truncate text-sm font-medium capitalize">
                         {u.leaveType}
                       </span>
-                      <Meter value={u.taken} max={u.granted} className="flex-1" />
+                      <Meter
+                        value={u.taken}
+                        max={u.granted}
+                        label={`${u.leaveType} leave utilization`}
+                        className="flex-1"
+                      />
                       <span className="w-12 shrink-0 text-right font-mono text-xs text-muted-foreground">
                         {Math.round((u.taken / u.granted) * 100)}%
                       </span>

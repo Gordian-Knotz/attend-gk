@@ -22,6 +22,7 @@ import { AttendanceTrendChart } from "@/components/charts/attendance-trend-chart
 import { SiteAttendanceChart } from "@/components/charts/site-attendance-chart";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Meter } from "@/components/ui/meter";
 import {
   Table,
   TableHeader,
@@ -469,6 +470,25 @@ export default async function ReportsPage({
             </p>
           ) : (
             <div className="overflow-x-auto">
+              {/* At-a-glance meters, one per budgeted leave type — the exact
+                  numbers stay in the table below. Skips a type with no
+                  entitlement (granted === 0): "tracked, no allowance" has no
+                  limit to be a ratio against, and the table already says so. */}
+              <div className="mb-5 flex flex-col gap-3">
+                {utilizationRows
+                  .filter((u) => u.granted > 0)
+                  .map((u) => (
+                    <div key={u.leaveType} className="flex items-center gap-3">
+                      <span className="w-28 shrink-0 truncate text-sm font-medium capitalize">
+                        {u.leaveType}
+                      </span>
+                      <Meter value={u.taken} max={u.granted} className="flex-1" />
+                      <span className="w-12 shrink-0 text-right font-mono text-xs text-muted-foreground">
+                        {Math.round((u.taken / u.granted) * 100)}%
+                      </span>
+                    </div>
+                  ))}
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>

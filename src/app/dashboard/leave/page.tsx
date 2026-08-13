@@ -12,6 +12,7 @@ import {
 import { LeaveRequestDialog } from "../leave-request-dialog";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Meter } from "@/components/ui/meter";
 import { Callout } from "@/components/callout";
 import { MonthCalendar } from "@/components/leave/month-calendar";
 
@@ -179,26 +180,36 @@ export default async function LeavePage() {
               No leave entitlements yet for {year}.
             </p>
           ) : (
-            balances.map((b) => (
-              <div
-                key={b.leaveType}
-                className="flex items-center justify-between border-b border-border py-2.5 text-sm last:border-0"
-              >
-                <span className="capitalize">{b.leaveType}</span>
-                <span className="flex flex-col items-end gap-0.5">
-                  <span className="font-medium">
-                    {b.remaining === null
-                      ? "Tracked, no allowance"
-                      : `${formatLeaveDays(b.remaining)} remaining`}
-                  </span>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {formatLeaveDays(b.granted + b.carried)} granted ·{" "}
-                    {formatLeaveDays(b.taken)} taken ·{" "}
-                    {formatLeaveDays(b.pending)} pending
-                  </span>
-                </span>
-              </div>
-            ))
+            balances.map((b) => {
+              const grantedTotal = b.granted + b.carried;
+              return (
+                <div
+                  key={b.leaveType}
+                  className="flex flex-col gap-1.5 border-b border-border py-2.5 text-sm last:border-0"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="capitalize">{b.leaveType}</span>
+                    <span className="flex flex-col items-end gap-0.5">
+                      <span className="font-medium">
+                        {b.remaining === null
+                          ? "Tracked, no allowance"
+                          : `${formatLeaveDays(b.remaining)} remaining`}
+                      </span>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {formatLeaveDays(grantedTotal)} granted ·{" "}
+                        {formatLeaveDays(b.taken)} taken ·{" "}
+                        {formatLeaveDays(b.pending)} pending
+                      </span>
+                    </span>
+                  </div>
+                  {/* No meter for a type with no entitlement — "tracked, no
+                      allowance" has no limit to be a ratio against. */}
+                  {b.remaining !== null && grantedTotal > 0 && (
+                    <Meter value={b.taken} max={grantedTotal} />
+                  )}
+                </div>
+              );
+            })
           )}
         </CardContent>
       </Card>

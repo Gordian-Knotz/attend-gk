@@ -2,7 +2,13 @@ import { History, CalendarDays } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getEmployeeContext } from "@/lib/supabase/employee";
-import { DISPLAY_LOCALE, ORG_TIME_ZONE, formatTime, wallClockIn } from "@/lib/timezone";
+import {
+  DISPLAY_LOCALE,
+  ORG_TIME_ZONE,
+  formatTime,
+  wallClockIn,
+  zonedWallClockToUtc,
+} from "@/lib/timezone";
 import { localDateKey, ABSENT_CUTOFF_HOUR } from "@/lib/attendance-series";
 import { classifyCheckIn } from "@/lib/attendance";
 import type { AttendanceCheckIn } from "@/lib/attendance-calendar";
@@ -34,6 +40,14 @@ export default async function AttendancePage() {
   const nextMonthStart =
     month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
+  // The org's midnight, not UTC midnight — a `Z`-suffixed string here would
+  // shift the boundary by the org's UTC offset, misfiling a check-in near
+  // midnight into the wrong month.
+  const [msY, msM, msD] = monthStart.split("-").map(Number);
+  const [nmY, nmM, nmD] = nextMonthStart.split("-").map(Number);
+  const monthStartUtc = zonedWallClockToUtc(msY, msM, msD, 0, 0);
+  const nextMonthStartUtc = zonedWallClockToUtc(nmY, nmM, nmD, 0, 0);
+
   const [eventsRes, monthEventsRes, monthLeaveRes] = await Promise.all([
     supabase
       .from("attendance_events")
@@ -50,8 +64,8 @@ export default async function AttendancePage() {
       .select("event_type, occurred_at")
       .eq("employee_id", employee.id)
       .eq("event_type", "check_in")
-      .gte("occurred_at", `${monthStart}T00:00:00Z`)
-      .lt("occurred_at", `${nextMonthStart}T00:00:00Z`),
+      .gte("occurred_at", monthStartUtc.toISOString())
+      .lt("occurred_at", nextMonthStartUtc.toISOString()),
     supabase
       .from("leave_requests")
       .select("start_date, end_date, status")

@@ -49,6 +49,7 @@ export async function issueInvoice(orgId: string, period: BillingPeriod) {
 
   if (orgRes.error) return { error: orgRes.error.message };
   if (employeesRes.error) return { error: employeesRes.error.message };
+  if (existingRes.error) return { error: existingRes.error.message };
   if (existingRes.data) return { error: "That period already has an invoice." };
   if (!orgRes.data) return { error: "That organization no longer exists." };
 

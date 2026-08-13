@@ -110,10 +110,11 @@ export default async function AdminBillingPage() {
   const currentSeats = countBillableSeats(employees, period);
   const currentAmount = invoiceAmount(currentSeats, seatPriceUsd);
 
-  // A form only makes sense against an invoice that still needs settling.
-  const openInvoice = invoices.find((i) => i.status === "issued");
-  const openInvoicePayments = openInvoice ? paymentsByInvoice.get(openInvoice.id) ?? [] : [];
-  const hasPendingPayment = openInvoicePayments.some((p) => p.status === "pending");
+  // A form only makes sense against an invoice that still needs settling —
+  // every one of them, not just the newest: an org that missed more than
+  // one period has more than one open invoice, and each still needs its own
+  // payment recorded.
+  const openInvoices = invoices.filter((i) => i.status === "issued");
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -132,28 +133,33 @@ export default async function AdminBillingPage() {
 
       <p className="text-xs text-muted-foreground">{BILLING_COUNTING_RULE}</p>
 
-      {openInvoice && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Wallet className="size-4 text-muted-foreground" />
-              <CardTitle className="text-base">
-                {formatUsd(Number(openInvoice.amount_usd))} due for{" "}
-                {openInvoice.period_start} – {openInvoice.period_end}
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {hasPendingPayment ? (
-              <Callout variant="note" label="Payment recorded, awaiting confirmation">
-                We&apos;ll mark this invoice paid once we confirm the transaction.
-              </Callout>
-            ) : (
-              <RecordPaymentForm invoiceId={openInvoice.id} />
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {openInvoices.map((invoice) => {
+        const hasPendingPayment = (paymentsByInvoice.get(invoice.id) ?? []).some(
+          (p) => p.status === "pending"
+        );
+        return (
+          <Card key={invoice.id}>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Wallet className="size-4 text-muted-foreground" />
+                <CardTitle className="text-base">
+                  {formatUsd(Number(invoice.amount_usd))} due for{" "}
+                  {invoice.period_start} – {invoice.period_end}
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {hasPendingPayment ? (
+                <Callout variant="note" label="Payment recorded, awaiting confirmation">
+                  We&apos;ll mark this invoice paid once we confirm the transaction.
+                </Callout>
+              ) : (
+                <RecordPaymentForm invoiceId={invoice.id} />
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
 
       <Card>
         <CardHeader>

@@ -50,8 +50,25 @@ export async function recordPayment(input: {
   if (!invoice || invoice.org_id !== employee.orgId) {
     return { error: "That invoice couldn't be found." };
   }
-  if (invoice.status === "paid") {
-    return { error: "That invoice is already marked paid." };
+  // Allow-listed rather than a single "not paid" check: a draft or void
+  // invoice isn't owed either, and an explicit list says so instead of
+  // accepting anything that merely isn't "paid".
+  if (invoice.status !== "issued") {
+    return { error: "Payments can only be recorded for an issued invoice." };
+  }
+
+  const { data: existingPending, error: pendingError } = await supabase
+    .from("billing_payments")
+    .select("id")
+    .eq("invoice_id", invoice.id)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (pendingError) return { error: pendingError.message };
+  if (existingPending) {
+    return {
+      error: "A payment for this invoice is already recorded and awaiting confirmation.",
+    };
   }
 
   const { error } = await supabase.from("billing_payments").insert({

@@ -5,6 +5,7 @@ import { getEmployeeContext } from "@/lib/supabase/employee";
 import { DISPLAY_LOCALE, ORG_TIME_ZONE } from "@/lib/timezone";
 import { OrgSuspended } from "@/components/org-suspended";
 import { EmployeeSidebar } from "@/components/dashboard/employee-sidebar";
+import { HelpChatWidget } from "@/components/help/help-chat-widget";
 import { SignOutButton } from "./sign-out-button";
 import { NoticesRail } from "./notices-rail";
 
@@ -110,6 +111,8 @@ export default async function DashboardLayout({
           </div>
         </main>
       </div>
+
+      <HelpChatWidget role={employee.role} />
     </div>
   );
 }

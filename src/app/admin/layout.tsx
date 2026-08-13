@@ -7,6 +7,7 @@ import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminTopbar } from "@/components/admin/topbar";
 import { AdminIdentityProvider } from "@/components/admin/identity-context";
 import { OrgSuspended } from "@/components/org-suspended";
+import { HelpChatWidget } from "@/components/help/help-chat-widget";
 
 export const metadata: Metadata = {
   title: "Activ-HR — Admin",
@@ -71,6 +72,8 @@ export default async function AdminLayout({
           <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
         </div>
       </div>
+
+      <HelpChatWidget role={employee.role} />
     </AdminIdentityProvider>
   );
 }

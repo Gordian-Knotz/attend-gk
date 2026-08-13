@@ -45,6 +45,12 @@ export default async function SuperLayout({
 
           <div className="ml-auto flex items-center gap-3">
             <Link
+              href="/super/billing"
+              className="font-label inline-flex items-center gap-1.5 rounded-sm text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Billing
+            </Link>
+            <Link
               href="/admin"
               className="font-label inline-flex items-center gap-1.5 rounded-sm text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
             >

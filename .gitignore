@@ -52,3 +52,17 @@ public/@powersync
 # whoever is building, and nobody else's business.
 context-sessions/
 README.md
+
+# Specs and implementation plans. Same reasoning as above: they carry pricing
+# decisions, security findings, roadmap timing and the arguments behind them.
+#
+# THIS DOES NOT UNPUBLISH WHAT IS ALREADY PUSHED. Ten spec and plan files were
+# committed between 11 and 13 Aug 2026 to a PUBLIC repository, and remain in
+# git history for anyone who clones it. Adding a path here only stops future
+# files being added; removing the history needs a rewrite (git filter-repo)
+# and a force push, or the repository being made private. Same caveat doc 16
+# recorded when context-sessions/ was untracked.
+docs/superpowers/
+
+# Contains the audit of which advertised features do not actually exist.
+docs/product-reference.md

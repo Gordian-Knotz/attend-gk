@@ -13,6 +13,7 @@ import {
   FileBarChart,
   Settings,
   Globe,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,6 +29,7 @@ const NAV = [
   { label: "Leave", href: "/admin/leave", icon: CalendarCheck },
   { label: "Devices", href: "/admin/devices", icon: Fingerprint },
   { label: "Reports", href: "/admin/reports", icon: FileBarChart },
+  { label: "Billing", href: "/admin/billing", icon: CreditCard },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ] as const;
 

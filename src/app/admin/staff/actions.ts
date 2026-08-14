@@ -135,13 +135,33 @@ export async function inviteStaff(input: {
   // person — and their attendance history — into this org.
   const { data: existing, error: existingError } = await admin
     .from("employees")
-    .select("org_id")
+    .select("org_id, role")
     .eq("id", authUser.id)
     .maybeSingle();
 
   if (existingError) return { error: existingError.message };
   if (existing && existing.org_id !== employee.orgId) {
     return { error: "That account already belongs to another organization." };
+  }
+
+  // The upsert below runs through the SERVICE client, and guard_employee_role
+  // (0011) returns early when auth.uid() is null — so the database's protection
+  // against role tampering is NOT in play on this path.
+  //
+  // Without this check, an org_admin could invite an existing super_admin's
+  // address as 'staff' and the upsert would demote them: exactly what 0011's
+  // own comment says it prevents ("an org_admin could strip the only
+  // super_admin in their org and take the seat on the next pass"). Confirmed
+  // reachable in production — super_admin rows do live inside orgs that have
+  // their own separate org_admin.
+  //
+  // An invite may create a staff/manager row, or re-invite one. It may never
+  // rewrite an administrative one.
+  if (existing && !INVITABLE_ROLES.includes(existing.role as InvitableRole)) {
+    return {
+      error:
+        "That account already has an administrative role — change it from the staff list instead.",
+    };
   }
 
   const { error: upsertError } = await admin.from("employees").upsert({

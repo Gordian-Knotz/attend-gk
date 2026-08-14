@@ -14,14 +14,15 @@ import { PixelCard } from "@/components/ui/pixel-card";
 import { Reveal } from "@/components/motion/reveal";
 import { RevealHeading } from "@/components/motion/reveal-heading";
 import { BlurLabel } from "@/components/motion/blur-label";
-import { HeroThreads } from "@/components/site/hero-threads";
+import { DeploymentBoard } from "@/components/site/deployment-board";
 import { CtaTexture } from "@/components/site/cta-texture";
 import { SiteHeader } from "@/components/site/site-header";
-import { StatTiles } from "@/components/site/stat-tiles";
 import { ContactForm } from "@/components/site/contact-form";
 import { TrustBar } from "@/components/site/trust-bar";
 import { FeatureClusters } from "@/components/site/feature-clusters";
 import { IndustryTabs } from "@/components/site/industry-tabs";
+import { Pricing } from "@/components/site/pricing";
+import { ComingNext } from "@/components/site/coming-next";
 import { FAQ } from "@/components/site/faq";
 import { SiteFooter } from "@/components/site/site-footer";
 
@@ -72,16 +73,17 @@ export default function Home() {
           accessibility failure the 10 Aug Lighthouse run found. */}
       <main>
 
-      {/* Hero. Centred composition ported from attend-v3.
-          The backdrop sits on this full-bleed wrapper, not on the max-w
-          container below — inside it, the field would end in two hard
-          vertical edges at the container bounds. */}
+      {/* Hero.
+          HeroThreads is gone: the WebGL field cost 35,970 ms of blocking time
+          under software rendering (README), and the workaround was to skip it
+          for GPU-blocklisted visitors. A deployment board says more and costs
+          nothing — see components/site/deployment-board.tsx. The file is kept
+          on disk with the other three orphans doc 09 lists. */}
       <div className="relative overflow-hidden">
-        <HeroThreads />
         <section className="mx-auto max-w-6xl px-6 pt-20 pb-12">
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
           <BlurLabel
-            text="Workforce attendance & time management"
+            text="Attendance for teams spread across sites"
             className="font-label text-primary"
           />
           <RevealHeading
@@ -89,16 +91,13 @@ export default function Home() {
             delay={0.15}
             className="mt-5 font-display text-5xl leading-[1.05] md:text-6xl"
           >
-            Clock in from the field.{" "}
-            {/* nowrap keeps the italic accent phrase intact. Centred and
-                narrower than the old two-column hero, the line break landed
-                mid-phrase ("…field. See / it live from…"), which reads as two
-                fragments rather than the one accent DS-01 builds every
-                heading around. */}
+            Know which posts are{" "}
+            {/* The one italic accent left on the page. nowrap keeps the phrase
+                whole: centred and narrow, the break otherwise landed
+                mid-phrase, which reads as two fragments. */}
             <span className="whitespace-nowrap italic text-primary">
-              See it live
-            </span>{" "}
-            from the office.
+              manned right now
+            </span>
           </RevealHeading>
 
           <p className="mt-6 max-w-xl text-muted-foreground">
@@ -119,21 +118,17 @@ export default function Home() {
               </Button>
             </a>
           </div>
+
+          {/* The price, in the hero, in one line. It was nowhere on the site
+              before today. The stat tiles that used to sit here were feature
+              counts and an unverifiable promise; the board below says more
+              than four numbers could, and §pricing has the detail. */}
+          <p className="mt-5 text-sm text-muted-foreground">
+            $3 per employee per month. No limit on sites.
+          </p>
         </div>
 
-        {/* These were feature counts and a promise dressed as metrics: "3 Ways
-            to clock in" (there are two), and "2 Weeks to launch", which nobody
-            could verify. Now four things that are true and checkable — and the
-            price, which appeared nowhere on the site at all. */}
-        <StatTiles
-          className="mt-16"
-          tiles={[
-            { value: "$3", label: "Per employee, per month" },
-            { value: "2", label: "Ways to clock in" },
-            { value: "0", label: "Apps to install" },
-            { value: "1", label: "Dashboard for every site" },
-          ]}
-        />
+        <DeploymentBoard />
         </section>
       </div>
 
@@ -197,6 +192,10 @@ export default function Home() {
       <FeatureClusters />
 
       <IndustryTabs />
+
+      <Pricing />
+
+      <ComingNext />
 
       <FAQ />
 

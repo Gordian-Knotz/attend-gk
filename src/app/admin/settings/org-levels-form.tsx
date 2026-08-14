@@ -270,10 +270,14 @@ export function OrgLevelsForm({ levels }: { levels: OrgLevel[] }) {
       {error && <p className="text-sm text-destructive">{error}</p>}
       {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
 
+      {/* This text was "levels don't change anyone's access", which was true
+          until the restrictive policies landed. Visibility is now enforced by
+          the database, so the copy has to say so. */}
       <p className="text-xs text-muted-foreground">
-        Levels describe your structure and who can see whose records. They
-        don&apos;t change anyone&apos;s access on their own — the access level on
-        each person&apos;s record still decides that.
+        Visibility is enforced. Someone on a level set to{" "}
+        <em>their own team</em> sees records only for the people who report to
+        them, however wide their access level is. It can only narrow: the access
+        level on each person&apos;s record remains the ceiling.
       </p>
     </div>
   );

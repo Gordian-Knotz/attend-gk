@@ -27,7 +27,7 @@ const FAQS = [
   ],
   [
     "Can I set up my own management structure?",
-    "Yes. Name your own levels — CEO, head of department, supervisor, whatever you use — and set how far each one can see: only themselves, their own team, their whole site, or the entire organization.",
+    "Yes. Name your own levels: CEO, head of department, supervisor, whatever you actually use. For each one you set how far it can see, from only themselves up to the entire organization.",
   ],
   [
     "Is there a limit on how many sites or staff I can add?",
@@ -38,11 +38,11 @@ const FAQS = [
 export function FAQ() {
   return (
     <section id="faq" className="mx-auto max-w-3xl px-6 py-16">
-      <RevealHeading className="font-serif text-3xl">
-        Got questions? <span className="italic text-primary">We&apos;ve got answers</span>
+      <RevealHeading className="font-display text-3xl">
+        Questions we get asked
       </RevealHeading>
       <p className="mt-4 text-muted-foreground">
-        Everything worth knowing before you get started.
+        If yours isn&apos;t here, the form below reaches a person.
       </p>
       <Separator className="mt-4 mb-2" />
 

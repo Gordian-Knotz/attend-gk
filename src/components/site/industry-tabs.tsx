@@ -32,7 +32,7 @@ const INDUSTRIES = [
     features: [
       "GPS-verified clock-in for every worker",
       "Geofences scoped to each job site",
-      "Offline mode — syncs when back online",
+      "Offline mode that syncs when back online",
       "Real-time visibility across every site",
     ],
     spec: [
@@ -48,7 +48,7 @@ const INDUSTRIES = [
     features: [
       "GPS-verified clock-in at every post",
       "Geofences scoped to each site",
-      "Offline mode — syncs when back online",
+      "Offline mode that syncs when back online",
       "Real-time visibility across every post",
     ],
     spec: [
@@ -128,12 +128,11 @@ export function IndustryTabs() {
 
   return (
     <section id="industries" className="mx-auto max-w-6xl px-6 py-16">
-      <RevealHeading className="font-serif text-3xl">
-        Built for how your industry{" "}
-        <span className="italic text-primary">actually works</span>
+      <RevealHeading className="font-display text-3xl">
+        Built for how your industry works
       </RevealHeading>
       <p className="mt-4 max-w-lg text-muted-foreground">
-        One platform, tuned for every kind of team.
+        Same product; the shift patterns and the exceptions differ.
       </p>
       <Separator className="mt-4 mb-8" />
 
@@ -171,7 +170,7 @@ export function IndustryTabs() {
           <TabsContent key={industry.id} value={industry.id} className="pt-6">
             <div className="grid gap-10 md:grid-cols-[1.2fr_1fr]">
               <div>
-                <h3 className="font-serif text-2xl">{industry.title}</h3>
+                <h3 className="font-display text-2xl">{industry.title}</h3>
                 <ul className="mt-5 flex flex-col gap-3">
                   {industry.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2.5 text-sm">

@@ -73,13 +73,13 @@ const CLUSTERS = [
 export function FeatureClusters() {
   return (
     <section id="features" className="mx-auto max-w-6xl px-6 py-16">
-      <RevealHeading className="font-serif text-3xl">
-        Everything you need to manage{" "}
-        <span className="italic text-primary">attendance</span>
+      {/* "Everything you need to…" is filler, and the italic accent in every
+          heading was a formula. Both retired; the hero keeps the one accent. */}
+      <RevealHeading className="font-display text-3xl">
+        What you get
       </RevealHeading>
       <p className="mt-4 max-w-lg text-muted-foreground">
-        From clock-in to payroll export, built for teams that work on-site and
-        in the field.
+        Everything below is built and running today.
       </p>
       <Separator className="mt-4 mb-10" />
 
@@ -97,7 +97,7 @@ export function FeatureClusters() {
               {/* Two-line floor: the leads are one or two lines depending on
                   the card, and without it the rules below sit at different
                   heights across a row. */}
-              <p className="mt-4 font-serif text-xl leading-snug sm:min-h-14">
+              <p className="mt-4 font-display text-xl leading-snug sm:min-h-14">
                 {cluster.lead}
               </p>
 

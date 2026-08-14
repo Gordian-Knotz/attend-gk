@@ -74,7 +74,7 @@ export function ContactForm() {
         <span className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Check className="size-5" />
         </span>
-        <h3 className="font-serif text-2xl">Request received.</h3>
+        <h3 className="font-display text-2xl">Request received.</h3>
         <p className="max-w-sm text-muted-foreground">
           Thanks — we&apos;ll be in touch within one business day. If it&apos;s
           urgent, email us at{" "}

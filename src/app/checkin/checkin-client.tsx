@@ -38,7 +38,7 @@ export function CheckInClient({
         <CardContent className="flex flex-col items-center gap-6 py-10 text-center">
           <div>
             <div className="font-label text-muted-foreground">Site</div>
-            <div className="mt-1 font-serif text-2xl">
+            <div className="mt-1 font-display text-2xl">
               {siteName ?? "No site assigned"}
             </div>
           </div>

@@ -39,7 +39,7 @@ export function CheckInWidget({
           <div className="flex flex-col items-center gap-2 sm:items-start">
             <div>
               <div className="font-label text-muted-foreground">Site</div>
-              <div className="mt-1 font-serif text-xl">
+              <div className="mt-1 font-display text-xl">
                 {siteName ?? "No site assigned"}
               </div>
             </div>

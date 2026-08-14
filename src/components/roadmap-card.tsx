@@ -29,7 +29,7 @@ export function RoadmapCard({ audience }: { audience: "admin" | "staff" }) {
           <span className="flex size-8 items-center justify-center rounded-sm bg-primary/10 text-primary">
             <Sparkles className="size-4" strokeWidth={1.75} />
           </span>
-          <CardTitle className="font-serif text-xl">Coming soon</CardTitle>
+          <CardTitle className="font-display text-xl">Coming soon</CardTitle>
           {/* `proposed` is the dashed, muted variant — the design system
               already had a token meaning "not real yet", which is exactly
               what a roadmap entry is. */}

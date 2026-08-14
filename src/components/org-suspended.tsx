@@ -31,7 +31,7 @@ export function OrgSuspended({
       </span>
 
       <div>
-        <h1 className="font-serif text-3xl">
+        <h1 className="font-display text-3xl">
           {orgName} is <span className="italic text-primary">suspended</span>
         </h1>
         <p className="mt-3 text-muted-foreground">

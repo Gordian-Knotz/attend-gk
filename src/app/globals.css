@@ -52,7 +52,9 @@
 
   /* typefaces — self-hosted via @fontsource, no Google Fonts CDN call */
   --font-plex-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-source-serif: "Source Serif 4 Variable", ui-serif, Georgia, serif;
+  /* Was Source Serif 4. Named for the face, not for a classification it no
+     longer has — see src/app/layout.tsx for why the serif went. */
+  --font-archivo: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
   --font-plex-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
@@ -115,7 +117,10 @@
   --color-pac-paper: var(--pac-paper);
 
   --font-sans: var(--font-plex-sans);
-  --font-serif: var(--font-source-serif);
+  /* `font-display`, not `font-serif`: the utility should not claim a
+     classification the face does not have. Swept across src/ in the same
+     commit, so no intermediate state has a dangling class. */
+  --font-display: var(--font-archivo);
   --font-mono: var(--font-plex-mono);
 
   --radius-sm: calc(var(--radius) - 2px);
@@ -136,11 +141,20 @@
   h2,
   h3,
   h4 {
-    @apply font-serif;
-    letter-spacing: -0.01em;
+    @apply font-display;
+    /* Archivo is a grotesque and sets tighter than the old serif did; the
+       negative tracking that suited Source Serif closes it up too far at
+       display sizes. */
+    letter-spacing: -0.005em;
   }
+  /* Was: font-mono uppercase tracking-widest text-xs — a tiny, maximally
+     letter-spaced mono eyebrow above a display headline. That treatment, used
+     51 times across this product, is the most recognisable signature of an
+     AI-generated landing page there is.
+     Kept as a class so retiring it is one edit rather than 51, but it is now
+     a plain small label. Mono has moved to where it belongs: actual figures. */
   .font-label {
-    @apply font-mono uppercase tracking-widest text-xs;
+    @apply text-xs font-medium text-muted-foreground;
   }
 }
 

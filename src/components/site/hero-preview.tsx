@@ -62,7 +62,7 @@ export function HeroPreview() {
       <Shell>
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <div className="font-serif text-base leading-none">
+            <div className="font-display text-base leading-none">
               Coastal Guard Services
             </div>
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">

@@ -283,7 +283,7 @@ export default async function AdminOverviewPage() {
             className="border-t-2 border-t-foreground"
           >
             <CardContent>
-              <div className="font-serif text-4xl leading-none tabular-nums">
+              <div className="font-display text-4xl leading-none tabular-nums">
                 <StatValue value={String(kpi[key])} />
               </div>
               <div className="font-label mt-2 text-muted-foreground">

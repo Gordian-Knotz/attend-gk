@@ -161,7 +161,7 @@ export default async function SuperOverviewPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <div>
-              <div className="font-serif text-4xl leading-none tabular-nums">
+              <div className="font-display text-4xl leading-none tabular-nums">
                 {atRisk}
               </div>
               <div className="font-label mt-1 text-muted-foreground">
@@ -169,7 +169,7 @@ export default async function SuperOverviewPage() {
               </div>
             </div>
             <div>
-              <div className="font-serif text-4xl leading-none tabular-nums">
+              <div className="font-display text-4xl leading-none tabular-nums">
                 {suspended}
               </div>
               <div className="font-label mt-1 text-muted-foreground">
@@ -177,7 +177,7 @@ export default async function SuperOverviewPage() {
               </div>
             </div>
             <div>
-              <div className="font-serif text-4xl leading-none tabular-nums">
+              <div className="font-display text-4xl leading-none tabular-nums">
                 {totalPunches.toLocaleString("en-GB")}
               </div>
               <div className="font-label mt-1 text-muted-foreground">

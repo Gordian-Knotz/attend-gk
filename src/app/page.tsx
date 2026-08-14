@@ -26,37 +26,39 @@ import { FAQ } from "@/components/site/faq";
 import { SiteFooter } from "@/components/site/site-footer";
 
 /**
- * The three ways a punch actually gets recorded today.
+ * Setup to month end, in the order it actually happens.
  *
- * This list used to promise a native mobile app and support for "the
- * fingerprint or face scanners you already have". Neither exists: the product
- * is a phone browser, and while a terminal can be registered and issued a
- * webhook secret, there is no endpoint for one to send a scan to. The FAQ three
- * sections down said as much, which is a worse position than saying nothing.
+ * These were three cards comparing capture methods, sitting directly below the
+ * "Clock-in & verification" feature cluster and restating it. They are now a
+ * sequence, and numbered — which is worth being deliberate about, because
+ * numbered markers are decoration unless the order carries information the
+ * reader needs. Here it does: you cannot clock in before a boundary exists, and
+ * the board cannot fill before anyone clocks in. The capture methods fold into
+ * step two, where they belong.
  *
- * The third card is the replacement, and it earns its place: geofencing
- * enforced by a database trigger rather than by the client is the strongest
- * true claim this product has, and it was mentioned nowhere on the page while a
- * feature that did not exist had a card of its own.
+ * Step two carries the strongest true claim this product has and the one that
+ * appeared nowhere on the page: the geofence is enforced by a database trigger,
+ * not by the client, so it holds for punches replayed later from a phone that
+ * was offline.
  */
-const CAPTURE_LAYER = [
+const STEPS = [
+  {
+    icon: MapPin,
+    title: "Mark out each site",
+    detail:
+      "Drop a pin at the gate and set how far the boundary reaches. Once per site, and you can move it whenever a contract changes.",
+  },
   {
     icon: Smartphone,
-    title: "Their own phone",
+    title: "Staff clock in on their phone",
     detail:
-      "Staff clock in from any phone browser. Nothing to install. Punches taken without signal are queued and sent when the phone reconnects.",
+      "Any phone browser, or a shared tablet at the gate for sites where nobody carries a work phone. A punch from outside the boundary is refused by the database, so it stays refused even when the phone was offline at the time.",
   },
   {
     icon: QrCode,
-    title: "Shared kiosk",
+    title: "Watch the shift fill up",
     detail:
-      "A tablet at the gate, for sites where staff don't carry a work phone.",
-  },
-  {
-    icon: MapPin,
-    title: "Inside the geofence, or not at all",
-    detail:
-      "Every clock-in is checked against that site's boundary by the database itself, so it holds even for punches sent later from a phone that was offline.",
+      "See who is on post while the shift is still running, rather than reconciling a paper register at month end. Approved hours leave as CSV.",
   },
 ] as const;
 
@@ -85,7 +87,7 @@ export default function Home() {
           <RevealHeading
             as="h1"
             delay={0.15}
-            className="mt-5 font-serif text-5xl leading-[1.05] md:text-6xl"
+            className="mt-5 font-display text-5xl leading-[1.05] md:text-6xl"
           >
             Clock in from the field.{" "}
             {/* nowrap keeps the italic accent phrase intact. Centred and
@@ -119,41 +121,67 @@ export default function Home() {
           </div>
         </div>
 
+        {/* These were feature counts and a promise dressed as metrics: "3 Ways
+            to clock in" (there are two), and "2 Weeks to launch", which nobody
+            could verify. Now four things that are true and checkable — and the
+            price, which appeared nowhere on the site at all. */}
         <StatTiles
           className="mt-16"
           tiles={[
-            { value: "3", label: "Ways to clock in" },
-            { value: "2", label: "Weeks to launch" },
-            { value: "24/7", label: "Live visibility" },
+            { value: "$3", label: "Per employee, per month" },
+            { value: "2", label: "Ways to clock in" },
+            { value: "0", label: "Apps to install" },
             { value: "1", label: "Dashboard for every site" },
           ]}
         />
         </section>
       </div>
 
-      <FeatureClusters />
+      {/* The problem, before any feature name.
+          An operations manager's morning question is not "did people clock in"
+          but "is every post manned". This section exists to say that back to
+          them in their own words, and it deliberately names no feature. */}
+      <section className="mx-auto max-w-6xl px-6 py-16">
+        <div className="max-w-2xl">
+          <RevealHeading className="font-display text-3xl">
+            Roll call happens by phone
+          </RevealHeading>
+          <p className="mt-5 text-muted-foreground">
+            A supervisor rings each site, writes names on a sheet, and by the
+            time it reaches you the shift has changed. Nobody is sure whether
+            post 4 was covered at 6am.
+          </p>
+          <p className="mt-4 text-muted-foreground">
+            At month end the register and the payroll disagree, and there is no
+            way to settle which one is right. So the argument gets split, and it
+            happens again the next month.
+          </p>
+        </div>
+      </section>
 
-      {/* How it works / capture layer */}
+      {/* How it works — a real sequence, so the numbers carry information */}
       <section id="how-it-works" className="mx-auto max-w-6xl px-6 py-16">
-        <RevealHeading className="font-serif text-3xl">
-          How staff <span className="italic text-primary">clock in</span>
+        <RevealHeading className="font-display text-3xl">
+          How it works
         </RevealHeading>
         <Separator className="mt-4 mb-8" />
 
-        {/* The three capture methods are a comparison, so they stay side by
-            side and equal-height rather than becoming a stack or a carousel.
-            PixelCard replaces SpotlightCard here: the pixel fill radiates from
-            the centre on hover, which reads as the card responding rather than
-            a light passing over it. */}
         <div className="grid items-stretch gap-4 md:grid-cols-3">
-          {CAPTURE_LAYER.map(({ icon: Icon, title, detail }, i) => (
+          {STEPS.map(({ icon: Icon, title, detail }, i) => (
             <Reveal key={title} delay={i * 0.08} className="h-full">
               <PixelCard className="h-full">
                 <CardHeader>
-                  <span className="flex size-10 items-center justify-center rounded-sm border border-border bg-background/70 backdrop-blur-sm">
-                    <Icon className="size-5 text-primary" strokeWidth={1.5} />
-                  </span>
-                  <CardTitle className="mt-3 font-serif text-xl">
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-10 items-center justify-center rounded-sm border border-border bg-background/70 backdrop-blur-sm">
+                      <Icon className="size-5 text-primary" strokeWidth={1.5} />
+                    </span>
+                    {/* Mono, and used for a figure rather than an eyebrow —
+                        which is the whole point of keeping IBM Plex Mono. */}
+                    <span className="font-mono text-sm text-muted-foreground">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                  </div>
+                  <CardTitle className="mt-3 font-display text-xl">
                     {title}
                   </CardTitle>
                 </CardHeader>
@@ -165,6 +193,8 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      <FeatureClusters />
 
       <IndustryTabs />
 
@@ -181,18 +211,18 @@ export default function Home() {
             isn't worth it. The grid still lights up across the band's empty
             right-hand side, which is where it's visible anyway. */}
         <div className="relative mx-auto max-w-6xl px-6 py-16">
-          <BlurLabel
-            text="Ready when you are"
-            className="font-label text-primary"
-          />
-          <RevealHeading className="mt-4 max-w-xl font-serif text-4xl">
-            Ready to see where your team really is?
+          {/* "Ready when you are" + "Ready to see…" was the same word twice
+              and said nothing either time. The paragraph carried the third
+              "X — not Y" antithesis on the page and a rule-of-three list that
+              was one audience described three ways. */}
+          <BlurLabel text="Start with one site" className="font-label text-primary" />
+          <RevealHeading className="mt-4 max-w-xl font-display text-4xl">
+            Set up one site tonight
           </RevealHeading>
           <p className="mt-4 max-w-lg text-pac-paper/70">
-            One geofenced check-in flow for guards, field staff, and site
-            teams — with a live dashboard that tells you who&apos;s on site
-            right now, not who clocked in yesterday. Set up your first site
-            in minutes; no credit card required.
+            Mark out its boundary, add the guards on that post, and tomorrow
+            morning you will know who turned up without ringing anyone. No card
+            needed to start.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/login?mode=sign-up">
@@ -218,13 +248,12 @@ export default function Home() {
         <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <BlurLabel text="Get in touch" className="font-label text-primary" />
-            <RevealHeading className="mt-4 font-serif text-3xl">
-              Tell us about your <span className="italic text-primary">sites</span>.
+            <RevealHeading className="mt-4 font-display text-3xl">
+              Tell us about your sites
             </RevealHeading>
             <p className="mt-4 max-w-sm text-muted-foreground">
-              Share a bit about your team and we&apos;ll set up a pilot on
-              your own sites — no long procurement process, no hardware
-              purchase required to start.
+              Tell us how many sites you run and how your shifts work. We will
+              set up a pilot on your own posts. There is no hardware to buy.
             </p>
             <Separator className="my-6" />
             <dl className="flex flex-col gap-3 text-sm">

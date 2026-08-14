@@ -51,7 +51,7 @@ export function TrustBar() {
                 {CLIENTS.map((name) => (
                   <li
                     key={name}
-                    className="font-serif whitespace-nowrap text-sm text-foreground/70 md:text-base"
+                    className="font-display whitespace-nowrap text-sm text-foreground/70 md:text-base"
                   >
                     {name}
                   </li>

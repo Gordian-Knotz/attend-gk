@@ -26,7 +26,7 @@ export function Wordmark({
   className?: string;
 }) {
   return (
-    <span className={cn("inline-flex items-baseline font-serif", SIZES[size], className)}>
+    <span className={cn("inline-flex items-baseline font-display", SIZES[size], className)}>
       <span>Activ</span>
       <span className="italic text-primary">-HR</span>
     </span>

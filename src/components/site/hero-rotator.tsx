@@ -23,7 +23,7 @@ export function HeroRotator() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <p className="mt-6 flex flex-wrap items-baseline gap-x-2 font-serif text-2xl">
+    <p className="mt-6 flex flex-wrap items-baseline gap-x-2 font-display text-2xl">
       <span>Built for</span>
       {reduceMotion ? (
         <span className="italic text-primary">{AUDIENCES[0]}</span>

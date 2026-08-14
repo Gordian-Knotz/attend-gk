@@ -9,8 +9,18 @@ import "@fontsource/ibm-plex-sans/400.css";
 import "@fontsource/ibm-plex-sans/500.css";
 import "@fontsource/ibm-plex-sans/600.css";
 import "@fontsource/ibm-plex-mono/500.css";
-import "@fontsource-variable/source-serif-4/wght.css";
-import "@fontsource-variable/source-serif-4/wght-italic.css";
+// Archivo, not a serif. A high-contrast serif display reads as a literary
+// magazine; this product is about guard deployment — muster sheets, gate
+// registers, shift handovers. Archivo is a grotesque built for signage and
+// dense print, which is the world the buyer actually works in.
+//
+// Cream paper + high-contrast serif + warm accent is also the single most
+// recognisable AI-generated design signature in circulation, and two of those
+// three were DS-01. The palette stays; the serif goes.
+//
+// Italic is imported because the hero keeps exactly one italic accent phrase.
+import "@fontsource-variable/archivo/wght.css";
+import "@fontsource-variable/archivo/wght-italic.css";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { PowerSyncProvider } from "@/lib/powersync/provider";

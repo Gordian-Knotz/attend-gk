@@ -35,7 +35,7 @@ export function StatTiles({
             i >= 2 && "md:border-t-0"
           )}
         >
-          <div className="font-serif text-4xl leading-none tabular-nums">
+          <div className="font-display text-4xl leading-none tabular-nums">
             <StatValue value={tile.value} unit={tile.unit} />
           </div>
           <div className="font-label mt-2 text-muted-foreground">

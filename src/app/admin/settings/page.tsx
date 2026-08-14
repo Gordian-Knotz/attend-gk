@@ -184,7 +184,7 @@ export default async function SettingsPage() {
           ) : (
             <div className="flex flex-col gap-1">
               <span className="font-label text-muted-foreground">Name</span>
-              <span className="font-serif text-xl">
+              <span className="font-display text-xl">
                 {org?.name ?? employee.orgName}
               </span>
             </div>

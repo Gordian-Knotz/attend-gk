@@ -31,8 +31,27 @@ type AuthResult =
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Supabase's own floor. Stated here so the message is specific. */
-const MIN_PASSWORD_LENGTH = 6;
+/**
+ * Raised from 6 on 14 Aug 2026.
+ *
+ * Six was Supabase's default floor, and it was doing very little. Measured
+ * against production that day, GoTrue throttles the password grant after
+ * roughly 46 failed attempts per window — and the application's own limiter
+ * (6 per identifier per 15 minutes) is bypassable, because an attacker can
+ * call /auth/v1/token directly with the anon key that ships in the client
+ * bundle. Six characters against ~46 guesses a window is not a lot of margin.
+ *
+ * This is only the application's check. Two things in the Supabase dashboard
+ * matter more and are not code:
+ *
+ *   - Authentication → Policies → **leaked password protection**, which checks
+ *     candidates against HaveIBeenPwned. A 12-character password that has
+ *     appeared in a breach is weaker than a random 8, and length alone cannot
+ *     see that.
+ *   - Authentication → Policies → minimum length, which is what actually binds
+ *     a caller who skips this form entirely.
+ */
+const MIN_PASSWORD_LENGTH = 10;
 
 /**
  * Deliberately identical for "no such account" and "wrong password".

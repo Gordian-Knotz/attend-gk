@@ -1,9 +1,9 @@
 "use server";
 
 import { headers } from "next/headers";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 
 import { SUPPORT_EMAIL } from "@/lib/brand";
-import { createClient } from "@/lib/supabase/server";
 import {
   clientIpFrom,
   contactLimiter,
@@ -13,11 +13,29 @@ import {
 /**
  * The landing page's pilot enquiry form.
  *
- * This is the only unauthenticated write path in the application, so it is
- * the only one where the rate limit is load-bearing rather than defence in
- * depth: without it, a public form backed by an anon-insert policy is a
- * free row generator.
+ * ── Why this writes with the service role ────────────────────────────────
+ *
+ * This used to insert with the anon client, backed by an anon INSERT policy on
+ * contact_requests (0009). That made the rate limit below decorative: the anon
+ * key is inlined in the client bundle, so anyone could POST straight to
+ * /rest/v1/contact_requests and never touch this code. Verified against
+ * production on 14 Aug — a hand-rolled anon insert returned 201.
+ *
+ * Writing with the service role means the limiter is the only way in, because
+ * migration 0029 removes the anon policy and there is then no other path.
+ *
+ * DEPLOY ORDER MATTERS. This code must be live BEFORE 0029 is applied, or the
+ * public form breaks: the running build would still be using the anon client
+ * against a policy that no longer exists. 0029 is deliberately left unapplied
+ * for that reason.
  */
+function serviceClient() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -67,7 +85,17 @@ export async function submitContactRequest(
   }
   if (!company) return { error: "Enter your company name." };
 
-  const supabase = await createClient();
+  // Fails closed with the same generic message the insert failure uses: a
+  // missing key is an operator problem, and the public form must not explain
+  // the deployment's configuration to whoever is reading it.
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error("[contact] SUPABASE_SERVICE_ROLE_KEY is not set");
+    return {
+      error: `We couldn't record that just now. Email ${SUPPORT_EMAIL} directly and we'll pick it up.`,
+    };
+  }
+
+  const supabase = serviceClient();
 
   const { error } = await supabase.from("contact_requests").insert({
     full_name: fullName,

@@ -1,4 +1,4 @@
-import { MapPin, Building2, CreditCard, Clock, Palmtree } from "lucide-react";
+import { MapPin, Building2, CreditCard, Clock, Palmtree, Network } from "lucide-react";
 
 import { getEmployeeContext } from "@/lib/supabase/employee";
 import { createClient } from "@/lib/supabase/server";
@@ -16,6 +16,7 @@ import { OrgNameForm } from "./org-name-form";
 import { EditSiteDialog } from "./edit-site-dialog";
 import { LeavePolicyForm, type LeavePolicyValue } from "./leave-policy-form";
 import { GrantEntitlementsButton } from "./grant-entitlements-button";
+import { OrgLevelsForm, type OrgLevel } from "./org-levels-form";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -49,7 +50,7 @@ export default async function SettingsPage() {
   // computes "this year" the same way for the same reason.
   const year = Number(localDateKey(new Date()).slice(0, 4));
 
-  const [orgRes, sitesRes, leavePoliciesRes, leaveEntitlementsRes] =
+  const [orgRes, sitesRes, leavePoliciesRes, leaveEntitlementsRes, levelsRes, levelMembersRes] =
     await Promise.all([
       supabase
         .from("organizations")
@@ -81,6 +82,20 @@ export default async function SettingsPage() {
             data: [] as { employee_id: string }[],
             error: null,
           }),
+      supabase
+        .from("org_levels")
+        .select("id, name, rank, suggested_tier, visibility_scope")
+        .eq("org_id", employee.orgId)
+        .order("rank", { ascending: true })
+        .order("name", { ascending: true }),
+      // Counted in the app rather than with a grouped query: PostgREST has no
+      // GROUP BY, and 0023's `on delete restrict` means an admin needs to know
+      // who is in the way *before* pressing remove.
+      supabase
+        .from("employees")
+        .select("org_level_id")
+        .eq("org_id", employee.orgId)
+        .not("org_level_id", "is", null),
     ]);
 
   // Both queries report their own failure. Doc 11: a failed query rendering as
@@ -89,6 +104,27 @@ export default async function SettingsPage() {
   const loadFailed = Boolean(orgRes.error || sitesRes.error);
   const org = orgRes.data;
   const sites = sitesRes.data ?? [];
+
+  // Same reasoning as the leave block below: 0023 may not be applied on every
+  // environment, and one unapplied migration must not take the whole page with
+  // it. An empty ladder renders the preset picker, which is also the correct
+  // thing to show a genuinely unconfigured org.
+  const levelMemberCounts = new Map<string, number>();
+  for (const row of levelMembersRes.data ?? []) {
+    if (!row.org_level_id) continue;
+    levelMemberCounts.set(
+      row.org_level_id,
+      (levelMemberCounts.get(row.org_level_id) ?? 0) + 1
+    );
+  }
+  const orgLevels: OrgLevel[] = (levelsRes.data ?? []).map((l) => ({
+    id: l.id,
+    name: l.name,
+    rank: Number(l.rank),
+    suggested_tier: l.suggested_tier,
+    visibility_scope: l.visibility_scope,
+    memberCount: levelMemberCounts.get(l.id) ?? 0,
+  }));
 
   // Kept apart from `loadFailed`: migration 0014 may not be applied on every
   // environment yet, and a card that dies because one unapplied migration
@@ -175,6 +211,18 @@ export default async function SettingsPage() {
               </dd>
             </div>
           </dl>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Network className="size-4 text-primary" strokeWidth={1.75} />
+            <CardTitle className="text-base">Structure</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <OrgLevelsForm levels={orgLevels} />
         </CardContent>
       </Card>
 

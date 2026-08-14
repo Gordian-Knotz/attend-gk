@@ -1,11 +1,19 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { applyLevelPreset } from "@/app/admin/settings/org-levels-actions";
+import { presetByKey } from "@/lib/org-levels";
 
 /** Matches `employees.full_name`, which is `text not null`. */
 const MAX_NAME_LENGTH = 120;
 
-export async function provisionOrganization(orgName: string, adminName: string) {
+export async function provisionOrganization(
+  orgName: string,
+  adminName: string,
+  /** Optional starting ladder. Omitted or unknown means no levels are seeded,
+   *  which is the pre-hierarchy behaviour and stays fully supported. */
+  presetKey?: string
+) {
   const supabase = await createClient();
 
   const {
@@ -39,6 +47,27 @@ export async function provisionOrganization(orgName: string, adminName: string) 
 
   if (error) {
     return { error: error.message };
+  }
+
+  // The ladder is seeded AFTER the RPC, in a separate call, deliberately.
+  //
+  // create_organization_for_self (0002) is SECURITY DEFINER and carries a
+  // trap: it was edited to add a sixth defaulted parameter, and in Postgres
+  // adding a parameter OVERLOADS rather than replaces — the GRANT at the
+  // bottom of that file still names the five-argument signature. Touching it
+  // to seed levels is more dangerous than it looks.
+  //
+  // A failure here is reported but not fatal: the organization exists and is
+  // usable, and Settings offers the same presets. Rolling the org back because
+  // a cosmetic ladder failed would be much worse than starting without one.
+  if (presetKey && presetByKey(presetKey)) {
+    const seeded = await applyLevelPreset(presetKey);
+    if (seeded.error) {
+      return {
+        success: true as const,
+        warning: `Your organization is ready, but the structure wasn't applied (${seeded.error}). You can set it from Settings.`,
+      };
+    }
   }
 
   return { success: true as const };

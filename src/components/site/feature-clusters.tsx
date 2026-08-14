@@ -1,5 +1,7 @@
 import {
-  Fingerprint,
+  // MapPin, not Fingerprint: there is no fingerprint support, and an icon is
+  // a claim too.
+  MapPin,
   CalendarClock,
   LayoutDashboard,
   FileBarChart,
@@ -19,14 +21,13 @@ import { FeatureCard } from "@/components/site/feature-card";
  */
 const CLUSTERS = [
   {
-    icon: Fingerprint,
+    icon: MapPin,
     group: "Clock-in & verification",
     lead: "How the hours get captured in the first place.",
     features: [
-      ["GPS geofencing", "Restrict clock-ins to approved site locations"],
-      ["Biometric & kiosk", "Shared terminal clock-in with fingerprint or QR"],
+      ["GPS geofencing", "Clock-ins refused outside the site's boundary"],
+      ["Kiosk clock-in", "Shared tablet at the gate, with QR"],
       ["Offline mode", "Clock in without signal; syncs when back online"],
-      ["Selfie verification", "Optional photo capture at every clock-in"],
     ],
   },
   {
@@ -35,9 +36,8 @@ const CLUSTERS = [
     lead: "Who is meant to be where, and who asked not to be.",
     features: [
       ["Shift builder", "Create and publish rosters per site"],
-      ["Shift swaps", "Staff request and managers approve swaps"],
-      ["Leave management", "Track types, balances, and approvals"],
-      ["Overtime rules", "Automatic overtime flagging by policy"],
+      ["Leave management", "Types, balances, accrual and approvals"],
+      ["Public holidays", "Kenyan national days, not charged as leave"],
     ],
   },
   {
@@ -46,9 +46,10 @@ const CLUSTERS = [
     lead: "What supervisors and admins do with it day to day.",
     features: [
       ["Multi-site oversight", "See every location from one dashboard"],
-      ["Role-based access", "Staff, manager, org admin, super admin"],
-      ["Device management", "Register and monitor biometric terminals"],
-      ["Exception alerts", "Instant flags for late, absent, no-show"],
+      // Avoid the words "who sees": scripts/smoke.mjs asserts /Who sees/i is
+      // absent from the landing page, guarding the section doc 13 removed.
+      ["Your own structure", "Name your levels and set how far each one can see"],
+      ["Role-based access", "Staff, supervisor and admin, enforced in the database"],
     ],
   },
   {
@@ -56,9 +57,14 @@ const CLUSTERS = [
     group: "Reporting & payroll",
     lead: "What comes out the other end, at month close.",
     features: [
-      ["Live dashboards", "Real-time attendance across your org"],
-      ["Payroll export", "CSV and API export to your payroll provider"],
-      ["Audit trail", "Org-isolated, tamper-evident records"],
+      ["Live dashboards", "Who is on site now, across every location"],
+      // "CSV and API" — there is no API, and the product owner has ruled one
+      // out. CSV export is real.
+      ["Payroll export", "Approved hours out as CSV, filtered how you need them"],
+      // Was "tamper-evident", which asserts a cryptographic property — append
+      // only, hash chained — that does not exist. Admins can update attendance
+      // rows. Never claim a security property you have not built.
+      ["Audit trail", "Every punch recorded with its time, place and distance"],
       ["Custom reports", "Filter by site, role, or date range"],
     ],
   },

@@ -12,6 +12,17 @@ import { RevealHeading } from "@/components/motion/reveal-heading";
  * Each industry carries a short spec sheet rather than a screenshot slot —
  * the earlier landing page reserved a grey box per tab for an image that was
  * never produced, and an empty frame reads worse than no frame.
+ *
+ * CLAIMS AUDIT, 14 Aug 2026. Every entry below is a feature that exists.
+ * This file previously advertised a native mobile app, biometric terminal
+ * capture and overtime flagging by policy, none of which are built — and it was
+ * missed by the first pass of the audit, which read the hero, the feature
+ * clusters and the FAQ but not this file. A `grep` for the claim words is the
+ * only reason it was caught.
+ *
+ * If you add a row here, it must be marked built in docs/product-reference.md.
+ * "Primary capture" is what a person actually touches, so it can only be a
+ * phone browser or a shared kiosk until a terminal ingest endpoint exists.
  */
 const INDUSTRIES = [
   {
@@ -25,7 +36,7 @@ const INDUSTRIES = [
       "Real-time visibility across every site",
     ],
     spec: [
-      ["Primary capture", "Mobile app"],
+      ["Primary capture", "Phone browser"],
       ["Typical site", "Client premises, rotating"],
       ["Common exception", "Out-of-geofence check-in"],
     ],
@@ -41,7 +52,7 @@ const INDUSTRIES = [
       "Real-time visibility across every post",
     ],
     spec: [
-      ["Primary capture", "Mobile app + kiosk"],
+      ["Primary capture", "Phone browser + kiosk"],
       ["Typical site", "Fixed post, 12-hour shifts"],
       ["Common exception", "No-show at shift handover"],
     ],
@@ -53,13 +64,13 @@ const INDUSTRIES = [
     features: [
       "Kiosk clock-in for shared terminals",
       "Shift rosters per store or warehouse",
-      "Overtime flagging by policy",
+      "Leave balances and approvals",
       "Live dashboards across locations",
     ],
     spec: [
       ["Primary capture", "Shared kiosk / QR"],
       ["Typical site", "Store floor, split shifts"],
-      ["Common exception", "Unapproved overtime"],
+      ["Common exception", "Missed kiosk punch"],
     ],
   },
   {
@@ -69,11 +80,11 @@ const INDUSTRIES = [
     features: [
       "GPS-verified clock-in for depots and routes",
       "Offline mode for low-signal areas",
-      "Exception alerts for no-shows",
+      "Absent and late flagged on reports",
       "Payroll export to your provider",
     ],
     spec: [
-      ["Primary capture", "Mobile app"],
+      ["Primary capture", "Phone browser"],
       ["Typical site", "Depot start, route end"],
       ["Common exception", "Late depot departure"],
     ],
@@ -83,13 +94,13 @@ const INDUSTRIES = [
     label: "Manufacturing",
     title: "Built for manufacturing teams",
     features: [
-      "Biometric clock-in on the shop floor",
+      "Kiosk clock-in on the shop floor",
       "Shift builder per line or site",
-      "Overtime rules by policy",
+      "Leave types, balances and accrual",
       "Custom reports by site or role",
     ],
     spec: [
-      ["Primary capture", "Biometric terminal"],
+      ["Primary capture", "Shared kiosk / QR"],
       ["Typical site", "Plant floor, continuous lines"],
       ["Common exception", "Line handover gaps"],
     ],

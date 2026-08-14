@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Smartphone, Fingerprint, QrCode, ArrowRight } from "lucide-react";
+import { Smartphone, MapPin, QrCode, ArrowRight } from "lucide-react";
 
 import { SUPPORT_EMAIL } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
@@ -25,22 +25,38 @@ import { IndustryTabs } from "@/components/site/industry-tabs";
 import { FAQ } from "@/components/site/faq";
 import { SiteFooter } from "@/components/site/site-footer";
 
+/**
+ * The three ways a punch actually gets recorded today.
+ *
+ * This list used to promise a native mobile app and support for "the
+ * fingerprint or face scanners you already have". Neither exists: the product
+ * is a phone browser, and while a terminal can be registered and issued a
+ * webhook secret, there is no endpoint for one to send a scan to. The FAQ three
+ * sections down said as much, which is a worse position than saying nothing.
+ *
+ * The third card is the replacement, and it earns its place: geofencing
+ * enforced by a database trigger rather than by the client is the strongest
+ * true claim this product has, and it was mentioned nowhere on the page while a
+ * feature that did not exist had a card of its own.
+ */
 const CAPTURE_LAYER = [
   {
     icon: Smartphone,
-    title: "Mobile app",
+    title: "Their own phone",
     detail:
-      "Staff clock in from their own phone. Works offline and syncs automatically once they're back online.",
-  },
-  {
-    icon: Fingerprint,
-    title: "Biometric terminal",
-    detail: "Keep using the fingerprint or face scanners you already have on site.",
+      "Staff clock in from any phone browser. Nothing to install. Punches taken without signal are queued and sent when the phone reconnects.",
   },
   {
     icon: QrCode,
-    title: "Web kiosk / QR",
-    detail: "A shared tablet at the entrance, for sites where staff don't carry a work phone.",
+    title: "Shared kiosk",
+    detail:
+      "A tablet at the gate, for sites where staff don't carry a work phone.",
+  },
+  {
+    icon: MapPin,
+    title: "Inside the geofence, or not at all",
+    detail:
+      "Every clock-in is checked against that site's boundary by the database itself, so it holds even for punches sent later from a phone that was offline.",
   },
 ] as const;
 
@@ -84,10 +100,10 @@ export default function Home() {
           </RevealHeading>
 
           <p className="mt-6 max-w-xl text-muted-foreground">
-            For teams whose people aren&apos;t at a desk. Staff clock in
-            from their own phone or a fingerprint scanner you already have,
-            and managers see who&apos;s actually on site, in real time —
-            not a stack of timesheets to reconcile at month end.
+            Your people work across sites you can&apos;t see from the office.
+            They clock in from their own phone, inside the site&apos;s boundary
+            or not at all, and you see who is actually on post while the shift
+            is still running.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/login?mode=sign-up">

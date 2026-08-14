@@ -19,19 +19,19 @@ const FAQS = [
   ],
   [
     "Can I export attendance data to my payroll provider?",
-    "Yes. Approved hours export as CSV, or pull them directly via the Activ-HR API.",
+    "Yes. Approved hours export as CSV, filtered by site, role or date range.",
   ],
   [
     "What devices can my team use to clock in?",
-    "A phone browser with GPS, or a shared kiosk with QR scan. Native mobile apps and integration with fingerprint and face terminals are on the roadmap, not available today.",
+    "Any phone with a browser and GPS, or a shared tablet at the gate. Android and iOS apps, and support for fingerprint and face terminals, are being built.",
   ],
   [
-    "Can staff request shift swaps?",
-    "Yes. Staff request a swap from the schedule screen, and their manager approves or denies it before it takes effect.",
+    "Can I set up my own management structure?",
+    "Yes. Name your own levels — CEO, head of department, supervisor, whatever you use — and set how far each one can see: only themselves, their own team, their whole site, or the entire organization.",
   ],
   [
     "Is there a limit on how many sites or staff I can add?",
-    "No. Activ-HR scales from a single site to a multi-site organization, with role-based access for every level of your team.",
+    "No limit on sites. You pay $3 per employee per month, so the cost follows your headcount rather than a plan tier.",
   ],
 ] as const;
 

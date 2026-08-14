@@ -10,7 +10,8 @@
     "postinstall": "powersync-web copy-assets -o public",
     "smoke": "node scripts/smoke.mjs",
     "test": "node --test \"src/**/*.test.mts\"",
-    "smoke:authed": "node scripts/smoke-authed.mjs"
+    "smoke:authed": "node scripts/smoke-authed.mjs",
+    "smoke:admin": "node scripts/smoke-admin.mjs"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",

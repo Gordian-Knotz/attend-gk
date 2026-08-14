@@ -117,9 +117,52 @@ async function settleReveals(page) {
   });
 }
 
+/**
+ * The health endpoints, checked without a browser.
+ *
+ * These are the one part of the app whose whole job is being reachable
+ * WITHOUT a session, so the interesting assertion is the status code rather
+ * than anything rendered. `/api` is a protected prefix in
+ * src/lib/supabase/middleware.ts; a regression in PUBLIC_API_PATHS turns
+ * both of these into a 307 to /login, which is invisible in a browser where
+ * you already have a session and wrong for the monitor that is the only real
+ * caller. `redirect: "manual"` is what makes that visible here — following
+ * the redirect would land on /login and return a cheerful 200.
+ */
+async function checkHealthEndpoints() {
+  console.log(`\n── health endpoints`);
+
+  const live = await fetch(`${BASE}/api/health`, { redirect: "manual" });
+  report(live.status === 200, "/api/health returns 200", `got ${live.status}`);
+  report(
+    (live.headers.get("cache-control") ?? "").includes("no-store"),
+    "/api/health is not cacheable",
+    live.headers.get("cache-control") ?? "(absent)"
+  );
+
+  const body = await live.json().catch(() => null);
+  report(body?.status === "ok", "/api/health reports ok");
+  // A liveness probe that leaks build details is reconnaissance for anyone
+  // scraping it, and no help to an operator who can read the deploy log.
+  report(
+    body !== null && Object.keys(body).length === 1,
+    "/api/health discloses nothing else",
+    body ? Object.keys(body).join(",") : "(unparseable)"
+  );
+
+  const ready = await fetch(`${BASE}/api/health/ready`, { redirect: "manual" });
+  report(
+    ready.status === 200 || ready.status === 503,
+    "/api/health/ready answers 200 or 503",
+    `got ${ready.status}`
+  );
+}
+
 async function run() {
   const browser = await chromium.launch();
   console.log(`\nsmoke: ${BASE}\n${"=".repeat(60)}`);
+
+  await checkHealthEndpoints();
 
   for (const theme of ["light", "dark"]) {
     for (const { w, h, label } of WIDTHS) {

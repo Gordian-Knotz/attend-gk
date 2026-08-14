@@ -13,11 +13,33 @@ const PROTECTED_PATHS = [
 ];
 
 /**
+ * Exemptions from PROTECTED_PATHS, listed one by one.
+ *
+ * `/api` is a protected prefix, which is the right default — but it means a
+ * health endpoint added under it returns a 307 to /login for every
+ * unauthenticated caller. That failure is invisible in a browser, where you
+ * have a session, and wrong for the monitor, which is the only thing that
+ * ever calls it.
+ *
+ * An allow-list rather than removing `/api` from PROTECTED_PATHS: the
+ * default stays "protected", so a future `/api/anything` is closed until
+ * somebody deliberately opens it here. Same fail-closed reasoning as the
+ * missing-env check below.
+ *
+ * Exact matches only, no prefixes — `/api/health/ready` is listed in its own
+ * right rather than being swept in by a `/api/health` prefix, so a later
+ * `/api/health/internal` cannot become public by accident.
+ */
+const PUBLIC_API_PATHS = ["/api/health", "/api/health/ready"];
+
+/**
  * Segment-aware prefix match. A plain `startsWith("/admin")` also matches
  * `/admin-preview`, so a route added later under a similar name would be
  * silently unprotected.
  */
 function isProtectedPath(pathname: string) {
+  if (PUBLIC_API_PATHS.includes(pathname)) return false;
+
   return PROTECTED_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );

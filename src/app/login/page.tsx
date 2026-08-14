@@ -114,7 +114,10 @@ function LoginForm() {
       // These go through server actions rather than the browser Supabase
       // client so our own rate limits can see them — see login/actions.ts.
       if (mode === "forgot") {
-        const result = await requestPasswordReset(email, window.location.origin);
+        // No origin argument: the server resolves it. Passing
+        // window.location.origin let an attacker choose where a genuine
+        // Supabase recovery email pointed — see login/actions.ts.
+        const result = await requestPasswordReset(email);
         if (result.error) {
           setError(result.error);
           return;

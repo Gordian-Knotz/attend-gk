@@ -119,9 +119,29 @@ export async function signUp(email: string, password: string): Promise<AuthResul
   return { role: "onboarding" };
 }
 
+/**
+ * Where the recovery link points.
+ *
+ * Resolved on the server, never accepted from the caller. This was a
+ * PARAMETER — `requestPasswordReset(email, window.location.origin)` — and a
+ * server action is a public HTTP endpoint, so the value was whatever the
+ * caller sent. Posting `{"origin": "https://evil.example"}` had Supabase
+ * email the victim a *genuine* recovery link pointing at the attacker's host;
+ * clicking it handed over the PKCE code, and against an org_admin that is the
+ * tenant's whole roster. Do not turn this back into an argument.
+ *
+ * Unset is deliberate and safe: `resetPasswordForEmail` then falls back to the
+ * project's configured Site URL, which is correct by definition. That is why
+ * this is not defaulted to localhost — a localhost fallback in production
+ * would email real users a link to their own machine.
+ *
+ * The allowlist in Supabase → Authentication → URL Configuration is the
+ * actual enforcement. This constant only decides which allowed entry is used.
+ */
+const SITE_URL = process.env.SITE_URL?.trim();
+
 export async function requestPasswordReset(
-  email: string,
-  origin: string
+  email: string
 ): Promise<{ error?: string; sent?: true }> {
   const address = email?.trim().toLowerCase() ?? "";
 
@@ -143,9 +163,12 @@ export async function requestPasswordReset(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(address, {
-    redirectTo: `${origin}/reset-password`,
-  });
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    address,
+    // Omitted entirely when SITE_URL is unset, rather than passed as a guess:
+    // Supabase then uses the project's Site URL. See SITE_URL above.
+    SITE_URL ? { redirectTo: `${SITE_URL}/reset-password` } : undefined
+  );
 
   // Errors are swallowed on purpose. Reporting "no account with that email"
   // is the same account-existence oracle as above, just on a form that
